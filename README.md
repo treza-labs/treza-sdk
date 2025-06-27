@@ -392,10 +392,8 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 
 ## Support
 
-- 📖 **Documentation**: [Treza Platform Docs](https://treza.com/docs)
+- 📖 **Documentation**: [docs.treza.xyz](https://docs.treza.xyz)
 - 🐛 **Issues**: [GitHub Issues](https://github.com/treza-labs/treza-sdk/issues)
-- 💬 **Community**: [Discord](https://discord.gg/treza)
-- 📧 **Email**: [support@treza.com](mailto:support@treza.com)
 
 ## About Treza
 
