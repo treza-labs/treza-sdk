@@ -23,7 +23,7 @@ import { TrezaClient } from '@treza/sdk';
 
 // Initialize the client
 const client = new TrezaClient();
-const walletAddress = '0x1234567890abcdef';
+const walletAddress = '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB';
 
 // Create an enclave
 const enclave = await client.createEnclave({
@@ -60,7 +60,7 @@ const client = new TrezaClient({
 Retrieve all enclaves associated with a wallet address.
 
 ```typescript
-const enclaves = await client.getEnclaves('0x1234567890abcdef');
+const enclaves = await client.getEnclaves('0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
 console.log('Found enclaves:', enclaves.length);
 ```
 
@@ -73,7 +73,7 @@ const enclave = await client.createEnclave({
   name: 'ML Training Environment',
   description: 'Secure environment for model training',
   region: 'us-east-1',
-  walletAddress: '0x1234567890abcdef',
+  walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB',
   githubConnection: {
     isConnected: false
   }
@@ -87,7 +87,7 @@ Update an existing enclave.
 ```typescript
 const updatedEnclave = await client.updateEnclave({
   id: 'enc_123456',
-  walletAddress: '0x1234567890abcdef',
+  walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB',
   description: 'Updated description',
   region: 'us-west-2'
 });
@@ -98,7 +98,7 @@ const updatedEnclave = await client.updateEnclave({
 Delete an enclave.
 
 ```typescript
-const message = await client.deleteEnclave('enc_123456', '0x1234567890abcdef');
+const message = await client.deleteEnclave('enc_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
 console.log(message); // "Enclave deleted successfully"
 ```
 
@@ -157,7 +157,7 @@ console.log('Branches:', branches.branches.map(b => b.name));
 import { TrezaClient } from '@treza/sdk';
 
 const client = new TrezaClient();
-const walletAddress = '0x1234567890abcdef';
+const walletAddress = '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB';
 
 async function setupEnclave() {
   try {
@@ -329,7 +329,7 @@ For development and testing, you can set these environment variables:
 TREZA_BASE_URL=https://app.treza.xyz
 
 # For examples: Your wallet address
-WALLET_ADDRESS=0x1234567890abcdef
+WALLET_ADDRESS=0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB
 
 # For GitHub integration examples
 GITHUB_ACCESS_TOKEN=gho_xxxxxxxxxxxxxxxxxxxx
@@ -375,7 +375,7 @@ Run the examples:
 
 ```bash
 # Set your environment variables first
-export WALLET_ADDRESS=0x1234567890abcdef
+export WALLET_ADDRESS=0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB
 export GITHUB_ACCESS_TOKEN=gho_xxxxxxxxxxxxxxxxxxxx
 
 # Run the examples

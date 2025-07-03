@@ -1,7 +1,7 @@
 import { TrezaClient, TrezaSdkError } from '../src';
 
 // Example wallet address (replace with your actual wallet)
-const WALLET_ADDRESS = process.env.WALLET_ADDRESS || '0x1234567890abcdef';
+const WALLET_ADDRESS = process.env.WALLET_ADDRESS || '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB';
 
 // Example: Enclave Management
 async function enclaveManagementExample() {
