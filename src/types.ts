@@ -2,7 +2,7 @@
  * Configuration options for the Treza SDK client
  */
 export interface TrezaConfig {
-  /** Base URL for the Treza API (defaults to https://app.treza.xyz) */
+  /** Base URL for the Treza API (defaults to https://app.trezalabs.com) */
   baseUrl?: string;
   /** Request timeout in milliseconds (defaults to 30000) */
   timeout?: number;
@@ -24,12 +24,32 @@ export interface Enclave {
   region: string;
   /** Associated wallet address */
   walletAddress: string;
+  /** Provider ID used for this enclave */
+  providerId: string;
+  /** Provider-specific configuration settings */
+  providerConfig?: Record<string, any>;
   /** Creation timestamp */
   createdAt: string;
   /** Last update timestamp */
   updatedAt: string;
   /** GitHub connection details */
   githubConnection?: GitHubConnection;
+}
+
+/**
+ * Provider information for enclave deployment
+ */
+export interface Provider {
+  /** Unique provider identifier */
+  id: string;
+  /** Human-readable provider name */
+  name: string;
+  /** Provider description */
+  description: string;
+  /** Available regions for this provider */
+  regions: string[];
+  /** Configuration schema for this provider */
+  configSchema: Record<string, any>;
 }
 
 /**
@@ -60,6 +80,10 @@ export interface CreateEnclaveRequest {
   region: string;
   /** Wallet address */
   walletAddress: string;
+  /** Provider ID for enclave deployment */
+  providerId: string;
+  /** Optional provider-specific configuration */
+  providerConfig?: Record<string, any>;
   /** Optional GitHub connection */
   githubConnection?: GitHubConnection;
 }
@@ -78,6 +102,10 @@ export interface UpdateEnclaveRequest {
   description?: string;
   /** Optional updated region */
   region?: string;
+  /** Optional updated provider ID */
+  providerId?: string;
+  /** Optional updated provider configuration */
+  providerConfig?: Record<string, any>;
   /** Optional updated GitHub connection */
   githubConnection?: GitHubConnection;
 }
@@ -94,6 +122,162 @@ export interface EnclaveResponse {
  */
 export interface EnclavesResponse {
   enclaves: Enclave[];
+}
+
+/**
+ * Response for provider operations
+ */
+export interface ProviderResponse {
+  provider: Provider;
+}
+
+/**
+ * Response for listing providers
+ */
+export interface ProvidersResponse {
+  providers: Provider[];
+}
+
+/**
+ * Task object for scheduled operations
+ */
+export interface Task {
+  /** Unique task identifier */
+  id: string;
+  /** Task name */
+  name: string;
+  /** Task description */
+  description: string;
+  /** Associated enclave ID */
+  enclaveId: string;
+  /** Current task status */
+  status: 'running' | 'stopped' | 'failed' | 'pending';
+  /** Cron-style schedule expression */
+  schedule: string;
+  /** Associated wallet address */
+  walletAddress: string;
+  /** Creation timestamp */
+  createdAt: string;
+  /** Last update timestamp */
+  updatedAt: string;
+  /** Last execution timestamp */
+  lastRun?: string;
+}
+
+/**
+ * Request body for creating a new task
+ */
+export interface CreateTaskRequest {
+  /** Task name */
+  name: string;
+  /** Task description */
+  description: string;
+  /** Associated enclave ID */
+  enclaveId: string;
+  /** Cron-style schedule expression */
+  schedule: string;
+  /** Wallet address for authorization */
+  walletAddress: string;
+}
+
+/**
+ * Request body for updating a task
+ */
+export interface UpdateTaskRequest {
+  /** Task ID */
+  id: string;
+  /** Wallet address for authorization */
+  walletAddress: string;
+  /** Optional updated name */
+  name?: string;
+  /** Optional updated description */
+  description?: string;
+  /** Optional updated schedule */
+  schedule?: string;
+  /** Optional updated status */
+  status?: 'running' | 'stopped' | 'failed' | 'pending';
+}
+
+/**
+ * Response for task operations
+ */
+export interface TaskResponse {
+  task: Task;
+}
+
+/**
+ * Response for listing tasks
+ */
+export interface TasksResponse {
+  tasks: Task[];
+}
+
+/**
+ * API Key object for authentication
+ */
+export interface ApiKey {
+  /** Unique API key identifier */
+  id: string;
+  /** Human-readable API key name */
+  name: string;
+  /** The actual API key (only returned on creation) */
+  key?: string;
+  /** SHA256 hash of the API key */
+  keyHash: string;
+  /** Array of permissions granted to this API key */
+  permissions: ('enclaves:read' | 'enclaves:write' | 'tasks:read' | 'tasks:write' | 'logs:read')[];
+  /** Current API key status */
+  status: 'active' | 'inactive';
+  /** Associated wallet address */
+  walletAddress: string;
+  /** Creation timestamp */
+  createdAt: string;
+  /** Last update timestamp */
+  updatedAt: string;
+  /** Last usage timestamp */
+  lastUsed?: string;
+}
+
+/**
+ * Request body for creating a new API key
+ */
+export interface CreateApiKeyRequest {
+  /** API key name */
+  name: string;
+  /** Array of permissions to grant */
+  permissions: ('enclaves:read' | 'enclaves:write' | 'tasks:read' | 'tasks:write' | 'logs:read')[];
+  /** Wallet address for authorization */
+  walletAddress: string;
+}
+
+/**
+ * Request body for updating an API key
+ */
+export interface UpdateApiKeyRequest {
+  /** API key ID */
+  id: string;
+  /** Wallet address for authorization */
+  walletAddress: string;
+  /** Optional updated name */
+  name?: string;
+  /** Optional updated permissions */
+  permissions?: ('enclaves:read' | 'enclaves:write' | 'tasks:read' | 'tasks:write' | 'logs:read')[];
+  /** Optional updated status */
+  status?: 'active' | 'inactive';
+}
+
+/**
+ * Response for API key operations
+ */
+export interface ApiKeyResponse {
+  apiKey: ApiKey;
+}
+
+/**
+ * Response for listing API keys
+ */
+export interface ApiKeysResponse {
+  apiKeys: ApiKey[];
 }
 
 /**
@@ -204,14 +388,15 @@ export interface GitHubTokenRequest {
 }
 
 /**
- * API error response
+ * API Error response
  */
 export interface ApiError {
   error: string;
+  details?: string[];
 }
 
 /**
- * Custom error class for Treza SDK errors
+ * Custom error class for Treza SDK
  */
 export class TrezaSdkError extends Error {
   public readonly code?: string;

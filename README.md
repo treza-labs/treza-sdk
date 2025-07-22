@@ -5,6 +5,9 @@ TypeScript/JavaScript SDK for the Treza Platform API. This SDK enables developer
 ## Features
 
 🔐 **Enclave Management** - Create, update, delete, and manage secure enclaves  
+🏗️ **Provider System** - Support for multiple enclave providers (AWS Nitro, etc.)  
+⚙️ **Task Scheduling** - Create and manage scheduled tasks within enclaves  
+🔑 **API Key Management** - Generate and manage API keys with fine-grained permissions  
 🐙 **GitHub Integration** - OAuth flow, repository access, and branch management  
 💳 **Wallet Authentication** - Secure wallet-based authentication system  
 🌍 **Multi-Region Support** - Deploy enclaves across different AWS regions  
@@ -25,12 +28,21 @@ import { TrezaClient } from '@treza/sdk';
 const client = new TrezaClient();
 const walletAddress = '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB';
 
+// Get available providers
+const providers = await client.getProviders();
+
 // Create an enclave
 const enclave = await client.createEnclave({
   name: 'My Trading Bot',
   description: 'Secure environment for trading algorithms',
   region: 'us-east-1',
-  walletAddress: walletAddress
+  walletAddress: walletAddress,
+  providerId: providers[0].id, // Use the first available provider
+  providerConfig: {
+    dockerImage: 'trading-bot:latest',
+    cpuCount: 2,
+    memoryMiB: 512
+  }
 });
 
 console.log('Enclave created:', enclave.id);
@@ -46,12 +58,37 @@ The `TrezaClient` accepts the following configuration options:
 
 ```typescript
 const client = new TrezaClient({
-  baseUrl: 'https://app.treza.xyz', // Optional: API base URL (default shown)
+  baseUrl: 'https://app.trezalabs.com', // Optional: API base URL (default shown)
   timeout: 30000                    // Optional: Request timeout in ms (default: 30000)
 });
 ```
 
 ## API Reference
+
+### Provider Management
+
+#### `getProviders(): Promise<Provider[]>`
+
+Retrieve all available enclave providers.
+
+```typescript
+const providers = await client.getProviders();
+console.log('Available providers:', providers.length);
+providers.forEach(provider => {
+  console.log(`- ${provider.name} (${provider.id})`);
+  console.log(`  Regions: ${provider.regions.join(', ')}`);
+});
+```
+
+#### `getProvider(providerId: string): Promise<Provider>`
+
+Get details for a specific provider.
+
+```typescript
+const provider = await client.getProvider('aws-nitro');
+console.log('Provider:', provider.name);
+console.log('Config schema:', provider.configSchema);
+```
 
 ### Enclave Management
 
@@ -74,6 +111,12 @@ const enclave = await client.createEnclave({
   description: 'Secure environment for model training',
   region: 'us-east-1',
   walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB',
+  providerId: 'aws-nitro',
+  providerConfig: {
+    dockerImage: 'ml-training:latest',
+    cpuCount: 4,
+    memoryMiB: 2048
+  },
   githubConnection: {
     isConnected: false
   }
@@ -89,7 +132,12 @@ const updatedEnclave = await client.updateEnclave({
   id: 'enc_123456',
   walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB',
   description: 'Updated description',
-  region: 'us-west-2'
+  region: 'us-west-2',
+  providerConfig: {
+    dockerImage: 'ml-training:v2',
+    cpuCount: 8,
+    memoryMiB: 4096
+  }
 });
 ```
 
@@ -100,6 +148,99 @@ Delete an enclave.
 ```typescript
 const message = await client.deleteEnclave('enc_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
 console.log(message); // "Enclave deleted successfully"
+```
+
+### Task Management
+
+#### `getTasks(walletAddress: string): Promise<Task[]>`
+
+Retrieve all tasks associated with a wallet address.
+
+```typescript
+const tasks = await client.getTasks('0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
+console.log('Found tasks:', tasks.length);
+```
+
+#### `createTask(request: CreateTaskRequest): Promise<Task>`
+
+Create a new scheduled task.
+
+```typescript
+const task = await client.createTask({
+  name: 'Daily Price Monitor',
+  description: 'Monitor cryptocurrency prices and send alerts',
+  enclaveId: 'enc_123456',
+  schedule: '0 9 * * *', // Every day at 9 AM
+  walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB'
+});
+```
+
+#### `updateTask(request: UpdateTaskRequest): Promise<Task>`
+
+Update an existing task.
+
+```typescript
+const updatedTask = await client.updateTask({
+  id: 'task_123456',
+  walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB',
+  schedule: '0 */6 * * *', // Every 6 hours
+  status: 'running'
+});
+```
+
+#### `deleteTask(taskId: string, walletAddress: string): Promise<string>`
+
+Delete a task.
+
+```typescript
+const message = await client.deleteTask('task_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
+console.log(message); // "Task deleted successfully"
+```
+
+### API Key Management
+
+#### `getApiKeys(walletAddress: string): Promise<ApiKey[]>`
+
+Retrieve all API keys associated with a wallet address.
+
+```typescript
+const apiKeys = await client.getApiKeys('0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
+console.log('Found API keys:', apiKeys.length);
+```
+
+#### `createApiKey(request: CreateApiKeyRequest): Promise<ApiKey>`
+
+Create a new API key with specified permissions.
+
+```typescript
+const apiKey = await client.createApiKey({
+  name: 'Production API Key',
+  permissions: ['enclaves:read', 'tasks:read', 'logs:read'],
+  walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB'
+});
+console.log('API Key created:', apiKey.key); // Only shown on creation
+```
+
+#### `updateApiKey(request: UpdateApiKeyRequest): Promise<ApiKey>`
+
+Update an existing API key.
+
+```typescript
+const updatedApiKey = await client.updateApiKey({
+  id: 'key_123456',
+  walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB',
+  permissions: ['enclaves:read', 'enclaves:write', 'tasks:read'],
+  status: 'active'
+});
+```
+
+#### `deleteApiKey(apiKeyId: string, walletAddress: string): Promise<string>`
+
+Delete an API key.
+
+```typescript
+const message = await client.deleteApiKey('key_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
+console.log(message); // "API key deleted successfully"
 ```
 
 ### GitHub Integration
@@ -161,17 +302,39 @@ const walletAddress = '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB';
 
 async function setupEnclave() {
   try {
+    // Get available providers
+    const providers = await client.getProviders();
+    console.log('🏗️  Available providers:', providers.length);
+
     // Create enclave
     const enclave = await client.createEnclave({
       name: 'Data Analytics Enclave',
       description: 'Secure environment for data processing',
       region: 'us-east-1',
-      walletAddress: walletAddress
+      walletAddress: walletAddress,
+      providerId: providers[0].id,
+      providerConfig: {
+        dockerImage: 'analytics:latest',
+        cpuCount: 4,
+        memoryMiB: 2048
+      }
     });
 
     console.log('✅ Enclave created:', enclave.id);
     console.log('📊 Status:', enclave.status);
     console.log('🌍 Region:', enclave.region);
+    console.log('🏗️  Provider:', enclave.providerId);
+
+    // Create a scheduled task
+    const task = await client.createTask({
+      name: 'Data Processing Task',
+      description: 'Process data files every hour',
+      enclaveId: enclave.id,
+      schedule: '0 * * * *', // Every hour
+      walletAddress: walletAddress
+    });
+
+    console.log('⚙️  Task created:', task.id);
 
     // Update enclave with GitHub integration
     const updatedEnclave = await client.updateEnclave({
@@ -299,13 +462,26 @@ import {
   // Core types
   TrezaConfig,
   Enclave,
+  Provider,
+  Task,
+  ApiKey,
   GitHubConnection,
   
   // Request/Response types
   CreateEnclaveRequest,
   UpdateEnclaveRequest,
+  CreateTaskRequest,
+  UpdateTaskRequest,
+  CreateApiKeyRequest,
+  UpdateApiKeyRequest,
   EnclaveResponse,
   EnclavesResponse,
+  ProviderResponse,
+  ProvidersResponse,
+  TaskResponse,
+  TasksResponse,
+  ApiKeyResponse,
+  ApiKeysResponse,
   
   // GitHub types
   GitHubUser,
@@ -326,7 +502,7 @@ For development and testing, you can set these environment variables:
 
 ```bash
 # Optional: Custom API endpoint
-TREZA_BASE_URL=https://app.treza.xyz
+TREZA_BASE_URL=https://app.trezalabs.com
 
 # For examples: Your wallet address
 WALLET_ADDRESS=0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB
@@ -367,7 +543,10 @@ npm run lint:fix
 Check out the comprehensive examples in the [`examples/`](./examples/) directory:
 
 - **Basic Usage** (`examples/basic-usage.ts`) - Complete examples of all SDK functionality
-- **Enclave Management** - Creating, updating, and managing enclaves
+- **Provider Management** - Discovering and using enclave providers
+- **Enclave Management** - Creating, updating, and managing enclaves with provider configuration
+- **Task Management** - Creating and scheduling tasks within enclaves
+- **API Key Management** - Generating and managing API keys with permissions
 - **GitHub Integration** - OAuth flow and repository management
 - **Error Handling** - Proper error handling patterns
 
@@ -392,7 +571,7 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 
 ## Support
 
-- 📖 **Documentation**: [docs.treza.xyz](https://docs.treza.xyz)
+- 📖 **Documentation**: [docs.trezalabs.com](https://docs.trezalabs.com)
 - 🐛 **Issues**: [GitHub Issues](https://github.com/treza-labs/treza-sdk/issues)
 
 ## About Treza

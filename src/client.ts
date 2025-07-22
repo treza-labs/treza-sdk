@@ -2,10 +2,23 @@ import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 import {
   TrezaConfig,
   Enclave,
+  Provider,
+  Task,
+  ApiKey,
   CreateEnclaveRequest,
   UpdateEnclaveRequest,
+  CreateTaskRequest,
+  UpdateTaskRequest,
+  CreateApiKeyRequest,
+  UpdateApiKeyRequest,
   EnclaveResponse,
   EnclavesResponse,
+  ProviderResponse,
+  ProvidersResponse,
+  TaskResponse,
+  TasksResponse,
+  ApiKeyResponse,
+  ApiKeysResponse,
   GitHubAuthResponse,
   GitHubTokenRequest,
   GitHubTokenResponse,
@@ -28,7 +41,7 @@ export class TrezaClient {
    */
   constructor(config: TrezaConfig = {}) {
     this.client = axios.create({
-      baseURL: config.baseUrl || 'https://app.treza.xyz',
+      baseURL: config.baseUrl || 'https://app.trezalabs.com',
       timeout: config.timeout || 30000,
       headers: {
         'Content-Type': 'application/json',
@@ -104,6 +117,163 @@ export class TrezaClient {
       return response.data.message;
     } catch (error) {
       throw this.handleError(error, 'Failed to delete enclave');
+    }
+  }
+
+  // ===== PROVIDER MANAGEMENT =====
+
+  /**
+   * Get all available providers
+   * @returns Promise resolving to list of providers
+   */
+  async getProviders(): Promise<Provider[]> {
+    try {
+      const response: AxiosResponse<ProvidersResponse> = await this.client.get('/api/providers');
+      return response.data.providers;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to get providers');
+    }
+  }
+
+  /**
+   * Get a specific provider by ID
+   * @param providerId Provider ID to retrieve
+   * @returns Promise resolving to provider details
+   */
+  async getProvider(providerId: string): Promise<Provider> {
+    try {
+      const response: AxiosResponse<ProviderResponse> = await this.client.get('/api/providers', {
+        params: { id: providerId }
+      });
+      return response.data.provider;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to get provider');
+    }
+  }
+
+  // ===== TASK MANAGEMENT =====
+
+  /**
+   * Get all tasks for a wallet address
+   * @param walletAddress Wallet address to filter tasks
+   * @returns Promise resolving to list of tasks
+   */
+  async getTasks(walletAddress: string): Promise<Task[]> {
+    try {
+      const response: AxiosResponse<TasksResponse> = await this.client.get('/api/tasks', {
+        params: { wallet: walletAddress }
+      });
+      return response.data.tasks;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to get tasks');
+    }
+  }
+
+  /**
+   * Create a new task
+   * @param request Task creation parameters
+   * @returns Promise resolving to created task
+   */
+  async createTask(request: CreateTaskRequest): Promise<Task> {
+    try {
+      const response: AxiosResponse<TaskResponse> = await this.client.post('/api/tasks', request);
+      return response.data.task;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to create task');
+    }
+  }
+
+  /**
+   * Update an existing task
+   * @param request Task update parameters
+   * @returns Promise resolving to updated task
+   */
+  async updateTask(request: UpdateTaskRequest): Promise<Task> {
+    try {
+      const response: AxiosResponse<TaskResponse> = await this.client.put('/api/tasks', request);
+      return response.data.task;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to update task');
+    }
+  }
+
+  /**
+   * Delete a task
+   * @param taskId Task ID to delete
+   * @param walletAddress Wallet address for authorization
+   * @returns Promise resolving to success message
+   */
+  async deleteTask(taskId: string, walletAddress: string): Promise<string> {
+    try {
+      const response: AxiosResponse<{ message: string }> = await this.client.delete('/api/tasks', {
+        params: { id: taskId, wallet: walletAddress }
+      });
+      return response.data.message;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to delete task');
+    }
+  }
+
+  // ===== API KEY MANAGEMENT =====
+
+  /**
+   * Get all API keys for a wallet address
+   * @param walletAddress Wallet address to filter API keys
+   * @returns Promise resolving to list of API keys
+   */
+  async getApiKeys(walletAddress: string): Promise<ApiKey[]> {
+    try {
+      const response: AxiosResponse<ApiKeysResponse> = await this.client.get('/api/api-keys', {
+        params: { wallet: walletAddress }
+      });
+      return response.data.apiKeys;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to get API keys');
+    }
+  }
+
+  /**
+   * Create a new API key
+   * @param request API key creation parameters
+   * @returns Promise resolving to created API key
+   */
+  async createApiKey(request: CreateApiKeyRequest): Promise<ApiKey> {
+    try {
+      const response: AxiosResponse<ApiKeyResponse> = await this.client.post('/api/api-keys', request);
+      return response.data.apiKey;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to create API key');
+    }
+  }
+
+  /**
+   * Update an existing API key
+   * @param request API key update parameters
+   * @returns Promise resolving to updated API key
+   */
+  async updateApiKey(request: UpdateApiKeyRequest): Promise<ApiKey> {
+    try {
+      const response: AxiosResponse<ApiKeyResponse> = await this.client.put('/api/api-keys', request);
+      return response.data.apiKey;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to update API key');
+    }
+  }
+
+  /**
+   * Delete an API key
+   * @param apiKeyId API key ID to delete
+   * @param walletAddress Wallet address for authorization
+   * @returns Promise resolving to success message
+   */
+  async deleteApiKey(apiKeyId: string, walletAddress: string): Promise<string> {
+    try {
+      const response: AxiosResponse<{ message: string }> = await this.client.delete('/api/api-keys', {
+        params: { id: apiKeyId, wallet: walletAddress }
+      });
+      return response.data.message;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to delete API key');
     }
   }
 
@@ -200,12 +370,16 @@ export class TrezaClient {
   }
 
   /**
-   * Generic error handler
+   * Handle general errors and convert them to TrezaSdkError
    */
   private handleError(error: any, defaultMessage: string): TrezaSdkError {
     if (error instanceof TrezaSdkError) {
       return error;
     }
-    return new TrezaSdkError(defaultMessage, 'UNKNOWN_ERROR', { originalError: error.message });
+    
+    return new TrezaSdkError(
+      error.message || defaultMessage,
+      'UNKNOWN_ERROR'
+    );
   }
 } 
