@@ -378,6 +378,214 @@ async function repositoryManagementExample() {
   }
 }
 
+// Example: NEW - Enclave Lifecycle Management
+async function enclaveLifecycleExample() {
+  const client = new TrezaClient();
+
+  try {
+    console.log('🔍 Getting deployed enclaves for lifecycle management...');
+    
+    // Get all enclaves
+    const enclaves = await client.getEnclaves(WALLET_ADDRESS);
+    const deployedEnclaves = enclaves.filter(e => e.status === 'DEPLOYED');
+    
+    if (deployedEnclaves.length === 0) {
+      console.log('⚠️  No deployed enclaves found - skipping lifecycle example');
+      return;
+    }
+
+    const targetEnclave = deployedEnclaves[0];
+    console.log(`🎯 Target enclave: ${targetEnclave.name} (${targetEnclave.id})`);
+    console.log(`📊 Current status: ${targetEnclave.status}`);
+
+    // 1. Pause the enclave
+    console.log('\n⏸️  Pausing enclave...');
+    const pausedResult = await client.pauseEnclave(targetEnclave.id, WALLET_ADDRESS);
+    console.log(`✅ ${pausedResult.message}`);
+    console.log(`📊 New status: ${pausedResult.enclave.status}`);
+
+    // 2. Resume the enclave (after a short delay for demo)
+    console.log('\n▶️  Resuming enclave...');
+    const resumedResult = await client.resumeEnclave(targetEnclave.id, WALLET_ADDRESS);
+    console.log(`✅ ${resumedResult.message}`);
+    console.log(`📊 New status: ${resumedResult.enclave.status}`);
+
+    // 3. Terminate the enclave (commented out for safety)
+    console.log('\n💡 To terminate an enclave:');
+    console.log(`   await client.terminateEnclave('${targetEnclave.id}', '${WALLET_ADDRESS}');`);
+    
+    // Uncomment below to actually terminate (WARNING: This will destroy the enclave!)
+    // console.log('\n🛑 Terminating enclave...');
+    // const terminatedResult = await client.terminateEnclave(targetEnclave.id, WALLET_ADDRESS);
+    // console.log(`✅ ${terminatedResult.message}`);
+    // console.log(`📊 New status: ${terminatedResult.enclave.status}`);
+
+  } catch (error) {
+    if (error instanceof TrezaSdkError) {
+      console.error('❌ Lifecycle Management Error:', {
+        message: error.message,
+        code: error.code,
+        statusCode: error.statusCode
+      });
+    } else {
+      console.error('❌ Unexpected error:', error);
+    }
+  }
+}
+
+// Example: NEW - Enclave Logs Management
+async function enclaveLogsExample() {
+  const client = new TrezaClient();
+
+  try {
+    console.log('📋 Getting enclaves for log viewing...');
+    
+    // Get all enclaves
+    const enclaves = await client.getEnclaves(WALLET_ADDRESS);
+    
+    if (enclaves.length === 0) {
+      console.log('⚠️  No enclaves found - skipping logs example');
+      return;
+    }
+
+    const targetEnclave = enclaves[0];
+    console.log(`🎯 Viewing logs for: ${targetEnclave.name} (${targetEnclave.id})`);
+
+    // 1. Get all logs
+    console.log('\n📜 Fetching all logs...');
+    const allLogs = await client.getEnclaveLogs(targetEnclave.id, 'all', 50);
+    console.log(`📊 Enclave: ${allLogs.enclave_name} (Status: ${allLogs.enclave_status})`);
+    console.log(`📦 Available log types: ${Object.keys(allLogs.logs).join(', ')}`);
+
+    // Display log counts
+    Object.entries(allLogs.logs).forEach(([type, logs]) => {
+      if (logs && logs.length > 0) {
+        console.log(`  📋 ${type}: ${logs.length} entries`);
+      }
+    });
+
+    // 2. Get application logs specifically
+    console.log('\n📱 Fetching application logs...');
+    const appLogs = await client.getEnclaveLogs(targetEnclave.id, 'application', 20);
+    const applicationLogs = appLogs.logs.application || [];
+    
+    if (applicationLogs.length > 0) {
+      console.log(`📋 Latest ${applicationLogs.length} application log entries:`);
+      applicationLogs.slice(0, 5).forEach((log, i) => {
+        const time = new Date(log.timestamp).toISOString();
+        console.log(`  ${i + 1}. [${time}] ${log.message.substring(0, 100)}...`);
+      });
+    } else {
+      console.log('📋 No application logs found');
+    }
+
+    // 3. Get error logs
+    console.log('\n🚨 Fetching error logs...');
+    const errorLogs = await client.getEnclaveLogs(targetEnclave.id, 'errors', 10);
+    const errors = errorLogs.logs.errors || [];
+    
+    if (errors.length > 0) {
+      console.log(`🚨 Found ${errors.length} error entries:`);
+      errors.slice(0, 3).forEach((log, i) => {
+        const time = new Date(log.timestamp).toISOString();
+        console.log(`  ${i + 1}. [${time}] ${log.source}: ${log.message.substring(0, 80)}...`);
+      });
+    } else {
+      console.log('✅ No errors found');
+    }
+
+  } catch (error) {
+    if (error instanceof TrezaSdkError) {
+      console.error('❌ Logs Error:', {
+        message: error.message,
+        code: error.code,
+        statusCode: error.statusCode
+      });
+    } else {
+      console.error('❌ Unexpected error:', error);
+    }
+  }
+}
+
+// Example: NEW - Docker Hub Integration
+async function dockerSearchExample() {
+  const client = new TrezaClient();
+
+  try {
+    console.log('🐳 Searching Docker Hub for images...');
+    
+    // 1. Search for hello-world images
+    console.log('\n🔍 Searching for "hello-world" images...');
+    const helloWorldResults = await client.searchDockerImages('hello-world');
+    console.log(`📋 Found ${helloWorldResults.count} total results`);
+    console.log(`📦 Showing first ${helloWorldResults.results.length} results:`);
+    
+    helloWorldResults.results.slice(0, 3).forEach((image, i) => {
+      console.log(`  ${i + 1}. ${image.name}`);
+      console.log(`     📝 ${image.description.substring(0, 80)}...`);
+      console.log(`     ⭐ ${image.stars} stars, Official: ${image.official ? '✅' : '❌'}`);
+    });
+
+    // 2. Search for Node.js images
+    console.log('\n🔍 Searching for "node" images...');
+    const nodeResults = await client.searchDockerImages('node');
+    console.log(`📋 Found ${nodeResults.count} total results`);
+    
+    const officialNode = nodeResults.results.find(img => img.official && img.name.includes('node'));
+    if (officialNode) {
+      console.log(`🎯 Official Node.js image found: ${officialNode.name}`);
+      console.log(`   📝 ${officialNode.description}`);
+      console.log(`   ⭐ ${officialNode.stars} stars`);
+
+      // 3. Get tags for official Node.js image
+      console.log('\n🏷️  Fetching tags for Node.js image...');
+      try {
+        const nodeTags = await client.getDockerTags(officialNode.name);
+        console.log(`📋 Found ${nodeTags.tags.length} tags:`);
+        
+        // Show latest, LTS, and alpine tags
+        const interestingTags = nodeTags.tags.filter(tag => 
+          ['latest', 'lts', 'alpine'].some(keyword => 
+            tag.name.includes(keyword)
+          )
+        ).slice(0, 5);
+        
+        if (interestingTags.length > 0) {
+          console.log('🎯 Popular tags:');
+          interestingTags.forEach(tag => {
+            const sizeMB = (tag.size / (1024 * 1024)).toFixed(1);
+            const updated = new Date(tag.lastUpdated).toLocaleDateString();
+            console.log(`   📦 ${tag.name} (${sizeMB}MB, updated: ${updated})`);
+          });
+        }
+      } catch (tagError) {
+        console.log(`⚠️  Could not fetch tags: ${tagError instanceof TrezaSdkError ? tagError.message : 'Unknown error'}`);
+      }
+    }
+
+    // 4. Search for Python images
+    console.log('\n🔍 Searching for "python" images...');
+    const pythonResults = await client.searchDockerImages('python');
+    const officialPython = pythonResults.results.find(img => img.official);
+    
+    if (officialPython) {
+      console.log(`🐍 Official Python image: ${officialPython.name}`);
+      console.log(`   ⭐ ${officialPython.stars} stars`);
+    }
+
+  } catch (error) {
+    if (error instanceof TrezaSdkError) {
+      console.error('❌ Docker Search Error:', {
+        message: error.message,
+        code: error.code,
+        statusCode: error.statusCode
+      });
+    } else {
+      console.error('❌ Unexpected error:', error);
+    }
+  }
+}
+
 // Example: Complete enclave setup with GitHub integration
 async function completeSetupExample() {
   const client = new TrezaClient();
@@ -467,12 +675,25 @@ async function completeSetupExample() {
 
 // Run examples
 if (require.main === module) {
-  console.log('=== Treza Platform SDK Examples ===\n');
+  console.log('=== Treza Platform SDK v0.2.0 Examples ===\n');
+  console.log('🆕 NEW: Enhanced with lifecycle management, logs, and Docker search!\n');
   
   providerManagementExample()
     .then(() => {
       console.log('\n' + '='.repeat(60) + '\n');
       return enclaveManagementExample();
+    })
+    .then(() => {
+      console.log('\n' + '='.repeat(60) + '\n');
+      return enclaveLifecycleExample(); // NEW
+    })
+    .then(() => {
+      console.log('\n' + '='.repeat(60) + '\n');
+      return enclaveLogsExample(); // NEW
+    })
+    .then(() => {
+      console.log('\n' + '='.repeat(60) + '\n');
+      return dockerSearchExample(); // NEW
     })
     .then(() => {
       console.log('\n' + '='.repeat(60) + '\n');
@@ -496,10 +717,16 @@ if (require.main === module) {
     })
     .then(() => {
       console.log('\n🎉 All examples completed!');
+      console.log('\n🆕 NEW FEATURES DEMONSTRATED:');
+      console.log('- ⏸️  Enclave Lifecycle Management (pause, resume, terminate)');
+      console.log('- 📜 Comprehensive Logs Access (application, ECS, Step Functions, Lambda, errors)');
+      console.log('- 🐳 Docker Hub Integration (search images, get tags)');
+      console.log('- 📊 Enhanced Status Tracking (DEPLOYED, PAUSED, PENDING_DESTROY, etc.)');
       console.log('\n💡 Tips:');
       console.log('- Set WALLET_ADDRESS environment variable for enclave operations');
       console.log('- Set GITHUB_ACCESS_TOKEN environment variable for GitHub integration');
       console.log('- Set TREZA_BASE_URL environment variable to use a different API endpoint');
+      console.log('- All new APIs are production-ready and match the live treza-app backend!');
     })
     .catch(console.error);
 } 

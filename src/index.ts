@@ -32,6 +32,14 @@ export {
   RepositoriesResponse,
   BranchesResponse,
   GetBranchesRequest,
+  EnclaveLifecycleRequest,
+  EnclaveLifecycleResponse,
+  LogEntry,
+  LogsResponse,
+  DockerImage,
+  DockerTag,
+  DockerSearchResponse,
+  DockerTagsResponse,
   ApiError,
   TrezaSdkError
 } from './types';

@@ -19,7 +19,7 @@ export interface Enclave {
   /** Enclave description */
   description: string;
   /** Current enclave status */
-  status: 'active' | 'inactive' | 'pending';
+  status: 'PENDING_DEPLOY' | 'DEPLOYING' | 'DEPLOYED' | 'PAUSING' | 'PAUSED' | 'RESUMING' | 'PENDING_DESTROY' | 'DESTROYING' | 'DESTROYED' | 'FAILED';
   /** AWS region where enclave is deployed */
   region: string;
   /** Associated wallet address */
@@ -34,6 +34,8 @@ export interface Enclave {
   updatedAt: string;
   /** GitHub connection details */
   githubConnection?: GitHubConnection;
+  /** Error message if enclave failed */
+  error_message?: string;
 }
 
 /**
@@ -393,6 +395,127 @@ export interface GitHubTokenRequest {
 export interface ApiError {
   error: string;
   details?: string[];
+}
+
+/**
+ * Enclave lifecycle action request
+ */
+export interface EnclaveLifecycleRequest {
+  /** Enclave ID */
+  id: string;
+  /** Action to perform */
+  action: 'pause' | 'resume' | 'terminate';
+  /** Wallet address for authorization */
+  walletAddress: string;
+}
+
+/**
+ * Enclave lifecycle action response
+ */
+export interface EnclaveLifecycleResponse {
+  /** Updated enclave */
+  enclave: Enclave;
+  /** Success message */
+  message: string;
+}
+
+/**
+ * Log entry from various sources
+ */
+export interface LogEntry {
+  /** Log timestamp */
+  timestamp: number;
+  /** Log message content */
+  message: string;
+  /** Log source (ecs, stepfunctions, lambda, application, etc.) */
+  source: string;
+  /** Log stream name */
+  stream?: string;
+  /** Log type (application, stdout, stderr, etc.) */
+  type?: string;
+  /** Log group name */
+  logGroup?: string;
+  /** Function name for lambda logs */
+  function?: string;
+  /** Execution name for step function logs */
+  execution?: string;
+  /** State machine type */
+  stateMachine?: string;
+}
+
+/**
+ * Logs response from the API
+ */
+export interface LogsResponse {
+  /** Enclave ID */
+  enclave_id: string;
+  /** Enclave name */
+  enclave_name: string;
+  /** Current enclave status */
+  enclave_status: string;
+  /** Log entries organized by type */
+  logs: {
+    /** ECS deployment logs */
+    ecs?: LogEntry[];
+    /** Step Functions workflow logs */
+    stepfunctions?: LogEntry[];
+    /** Lambda function logs */
+    lambda?: LogEntry[];
+    /** Application logs from the enclave */
+    application?: LogEntry[];
+    /** Error logs from all sources */
+    errors?: LogEntry[];
+  };
+}
+
+/**
+ * Docker image search result
+ */
+export interface DockerImage {
+  /** Image name */
+  name: string;
+  /** Image description */
+  description: string;
+  /** Star count */
+  stars: number;
+  /** Whether it's an official image */
+  official: boolean;
+  /** Whether it's automated */
+  automated: boolean;
+  /** Image owner */
+  owner?: string;
+}
+
+/**
+ * Docker tag information
+ */
+export interface DockerTag {
+  /** Tag name */
+  name: string;
+  /** Image size in bytes */
+  size: number;
+  /** Last updated timestamp */
+  lastUpdated: string;
+  /** Image digest */
+  digest: string;
+}
+
+/**
+ * Docker search response
+ */
+export interface DockerSearchResponse {
+  /** Total count of results */
+  count: number;
+  /** Search results */
+  results: DockerImage[];
+}
+
+/**
+ * Docker tags response
+ */
+export interface DockerTagsResponse {
+  /** Available tags */
+  tags: DockerTag[];
 }
 
 /**

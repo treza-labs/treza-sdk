@@ -5,6 +5,9 @@ TypeScript/JavaScript SDK for the Treza Platform API. This SDK enables developer
 ## Features
 
 🔐 **Enclave Management** - Create, update, delete, and manage secure enclaves  
+⏸️ **Lifecycle Control** - Pause, resume, and terminate enclaves with real-time status tracking  
+📜 **Comprehensive Logs** - Access application, deployment, and error logs from all sources  
+🐳 **Docker Integration** - Search Docker Hub and browse image tags  
 🏗️ **Provider System** - Support for multiple enclave providers (AWS Nitro, etc.)  
 ⚙️ **Task Scheduling** - Create and manage scheduled tasks within enclaves  
 🔑 **API Key Management** - Generate and manage API keys with fine-grained permissions  
@@ -46,6 +49,26 @@ const enclave = await client.createEnclave({
 });
 
 console.log('Enclave created:', enclave.id);
+console.log('Status:', enclave.status); // PENDING_DEPLOY, DEPLOYING, DEPLOYED, etc.
+
+// 🆕 NEW: Manage enclave lifecycle
+if (enclave.status === 'DEPLOYED') {
+  // Pause the enclave
+  const pausedEnclave = await client.pauseEnclave(enclave.id, walletAddress);
+  console.log('Enclave paused:', pausedEnclave.enclave.status); // PAUSING
+  
+  // Resume the enclave
+  const resumedEnclave = await client.resumeEnclave(enclave.id, walletAddress);
+  console.log('Enclave resumed:', resumedEnclave.enclave.status); // RESUMING
+}
+
+// 🆕 NEW: Get comprehensive logs
+const logs = await client.getEnclaveLogs(enclave.id, 'application');
+console.log('Application logs:', logs.logs.application?.length || 0);
+
+// 🆕 NEW: Search Docker Hub
+const dockerImages = await client.searchDockerImages('hello-world');
+console.log('Found', dockerImages.results.length, 'Docker images');
 
 // Get all enclaves for a wallet
 const enclaves = await client.getEnclaves(walletAddress);
@@ -148,6 +171,72 @@ Delete an enclave.
 ```typescript
 const message = await client.deleteEnclave('enc_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
 console.log(message); // "Enclave deleted successfully"
+```
+
+### 🆕 Enclave Lifecycle Management
+
+#### `getEnclave(enclaveId: string): Promise<Enclave>`
+
+Get details for a specific enclave.
+
+```typescript
+const enclave = await client.getEnclave('enc_123456');
+console.log('Enclave status:', enclave.status);
+console.log('Enclave region:', enclave.region);
+```
+
+#### `pauseEnclave(enclaveId: string, walletAddress: string): Promise<EnclaveLifecycleResponse>`
+
+Pause a running enclave.
+
+```typescript
+const result = await client.pauseEnclave('enc_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
+console.log('Message:', result.message);
+console.log('New status:', result.enclave.status); // PAUSING
+```
+
+#### `resumeEnclave(enclaveId: string, walletAddress: string): Promise<EnclaveLifecycleResponse>`
+
+Resume a paused enclave.
+
+```typescript
+const result = await client.resumeEnclave('enc_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
+console.log('Message:', result.message);
+console.log('New status:', result.enclave.status); // RESUMING
+```
+
+#### `terminateEnclave(enclaveId: string, walletAddress: string): Promise<EnclaveLifecycleResponse>`
+
+Terminate an enclave (this will destroy the enclave).
+
+```typescript
+const result = await client.terminateEnclave('enc_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
+console.log('Message:', result.message);
+console.log('New status:', result.enclave.status); // PENDING_DESTROY
+```
+
+### 🆕 Enclave Logs
+
+#### `getEnclaveLogs(enclaveId: string, logType?: string, limit?: number): Promise<LogsResponse>`
+
+Get logs for an enclave from various sources.
+
+```typescript
+// Get all logs
+const allLogs = await client.getEnclaveLogs('enc_123456', 'all', 100);
+console.log('Available log types:', Object.keys(allLogs.logs));
+
+// Get only application logs
+const appLogs = await client.getEnclaveLogs('enc_123456', 'application', 50);
+const applicationLogs = appLogs.logs.application || [];
+console.log('Application log entries:', applicationLogs.length);
+
+// Get only error logs
+const errorLogs = await client.getEnclaveLogs('enc_123456', 'errors', 20);
+const errors = errorLogs.logs.errors || [];
+console.log('Error entries:', errors.length);
+
+// Available log types: 'all', 'ecs', 'stepfunctions', 'lambda', 'application', 'errors'
 ```
 
 ### Task Management
@@ -288,6 +377,36 @@ const branches = await client.getRepositoryBranches({
 });
 
 console.log('Branches:', branches.branches.map(b => b.name));
+```
+
+### 🆕 Docker Hub Integration
+
+#### `searchDockerImages(query: string): Promise<DockerSearchResponse>`
+
+Search Docker Hub for container images.
+
+```typescript
+const searchResults = await client.searchDockerImages('hello-world');
+console.log('Found images:', searchResults.count);
+
+searchResults.results.forEach(image => {
+  console.log(`- ${image.name}: ${image.description}`);
+  console.log(`  ⭐ ${image.stars} stars, Official: ${image.official}`);
+});
+```
+
+#### `getDockerTags(repository: string): Promise<DockerTagsResponse>`
+
+Get available tags for a specific Docker repository.
+
+```typescript
+const tags = await client.getDockerTags('library/node');
+console.log('Available tags:', tags.tags.length);
+
+tags.tags.slice(0, 5).forEach(tag => {
+  const sizeMB = (tag.size / (1024 * 1024)).toFixed(1);
+  console.log(`- ${tag.name} (${sizeMB}MB, updated: ${tag.lastUpdated})`);
+});
 ```
 
 ## Usage Examples
@@ -482,6 +601,20 @@ import {
   TasksResponse,
   ApiKeyResponse,
   ApiKeysResponse,
+  
+  // 🆕 NEW: Lifecycle management types
+  EnclaveLifecycleRequest,
+  EnclaveLifecycleResponse,
+  
+  // 🆕 NEW: Logs types
+  LogEntry,
+  LogsResponse,
+  
+  // 🆕 NEW: Docker types
+  DockerImage,
+  DockerTag,
+  DockerSearchResponse,
+  DockerTagsResponse,
   
   // GitHub types
   GitHubUser,

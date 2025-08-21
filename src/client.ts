@@ -25,6 +25,11 @@ import {
   RepositoriesResponse,
   GetBranchesRequest,
   BranchesResponse,
+  EnclaveLifecycleRequest,
+  EnclaveLifecycleResponse,
+  LogsResponse,
+  DockerSearchResponse,
+  DockerTagsResponse,
   ApiError,
   TrezaSdkError
 } from './types';
@@ -111,12 +116,91 @@ export class TrezaClient {
    */
   async deleteEnclave(enclaveId: string, walletAddress: string): Promise<string> {
     try {
-      const response: AxiosResponse<{ message: string }> = await this.client.delete('/api/enclaves', {
-        params: { id: enclaveId, wallet: walletAddress }
+      const response: AxiosResponse<{ message: string }> = await this.client.delete(`/api/enclaves/${enclaveId}`, {
+        params: { wallet: walletAddress }
       });
       return response.data.message;
     } catch (error) {
       throw this.handleError(error, 'Failed to delete enclave');
+    }
+  }
+
+  /**
+   * Get a specific enclave by ID
+   * @param enclaveId Enclave ID to retrieve
+   * @returns Promise resolving to enclave details
+   */
+  async getEnclave(enclaveId: string): Promise<Enclave> {
+    try {
+      const response: AxiosResponse<EnclaveResponse> = await this.client.get(`/api/enclaves/${enclaveId}`);
+      return response.data.enclave;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to get enclave');
+    }
+  }
+
+  /**
+   * Perform lifecycle action on an enclave (pause, resume, terminate)
+   * @param request Lifecycle action parameters
+   * @returns Promise resolving to updated enclave
+   */
+  async performEnclaveAction(request: EnclaveLifecycleRequest): Promise<EnclaveLifecycleResponse> {
+    try {
+      const response: AxiosResponse<EnclaveLifecycleResponse> = await this.client.patch(`/api/enclaves/${request.id}`, {
+        action: request.action,
+        walletAddress: request.walletAddress
+      });
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error, `Failed to ${request.action} enclave`);
+    }
+  }
+
+  /**
+   * Pause an enclave
+   * @param enclaveId Enclave ID to pause
+   * @param walletAddress Wallet address for authorization
+   * @returns Promise resolving to updated enclave
+   */
+  async pauseEnclave(enclaveId: string, walletAddress: string): Promise<EnclaveLifecycleResponse> {
+    return this.performEnclaveAction({ id: enclaveId, action: 'pause', walletAddress });
+  }
+
+  /**
+   * Resume a paused enclave
+   * @param enclaveId Enclave ID to resume
+   * @param walletAddress Wallet address for authorization
+   * @returns Promise resolving to updated enclave
+   */
+  async resumeEnclave(enclaveId: string, walletAddress: string): Promise<EnclaveLifecycleResponse> {
+    return this.performEnclaveAction({ id: enclaveId, action: 'resume', walletAddress });
+  }
+
+  /**
+   * Terminate an enclave
+   * @param enclaveId Enclave ID to terminate
+   * @param walletAddress Wallet address for authorization
+   * @returns Promise resolving to updated enclave
+   */
+  async terminateEnclave(enclaveId: string, walletAddress: string): Promise<EnclaveLifecycleResponse> {
+    return this.performEnclaveAction({ id: enclaveId, action: 'terminate', walletAddress });
+  }
+
+  /**
+   * Get logs for an enclave
+   * @param enclaveId Enclave ID to get logs for
+   * @param logType Type of logs to retrieve ('all', 'ecs', 'stepfunctions', 'lambda', 'application', 'errors')
+   * @param limit Maximum number of log entries to return
+   * @returns Promise resolving to logs response
+   */
+  async getEnclaveLogs(enclaveId: string, logType: string = 'all', limit: number = 100): Promise<LogsResponse> {
+    try {
+      const response: AxiosResponse<LogsResponse> = await this.client.get(`/api/enclaves/${enclaveId}/logs`, {
+        params: { type: logType, limit }
+      });
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to get enclave logs');
     }
   }
 
@@ -337,6 +421,40 @@ export class TrezaClient {
       return response.data;
     } catch (error) {
       throw this.handleError(error, 'Failed to get repository branches');
+    }
+  }
+
+  // ===== DOCKER INTEGRATION =====
+
+  /**
+   * Search Docker Hub for images
+   * @param query Search query for Docker images
+   * @returns Promise resolving to search results
+   */
+  async searchDockerImages(query: string): Promise<DockerSearchResponse> {
+    try {
+      const response: AxiosResponse<DockerSearchResponse> = await this.client.get('/api/docker/search', {
+        params: { q: query }
+      });
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to search Docker images');
+    }
+  }
+
+  /**
+   * Get tags for a specific Docker repository
+   * @param repository Repository name (e.g., 'library/hello-world')
+   * @returns Promise resolving to available tags
+   */
+  async getDockerTags(repository: string): Promise<DockerTagsResponse> {
+    try {
+      const response: AxiosResponse<DockerTagsResponse> = await this.client.get('/api/docker/search', {
+        params: { repo: repository }
+      });
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to get Docker tags');
     }
   }
 
