@@ -13,6 +13,10 @@ interface ComplianceProviderProps {
     provider: ethers.Provider;
     signer?: ethers.Signer;
     children: React.ReactNode;
+    verificationMode?: 'fallback' | 'oracle' | 'attestation' | 'hybrid';
+    zkVerifyOracleAddress?: string;
+    attestationSystemAddress?: string;
+    transactionValueThreshold?: string;
 }
 
 interface ComplianceContextType {
@@ -34,7 +38,11 @@ const ComplianceContext = React.createContext<ComplianceContextType>({
 export const ComplianceProvider: React.FC<ComplianceProviderProps> = ({
     provider,
     signer,
-    children
+    children,
+    verificationMode = 'hybrid',
+    zkVerifyOracleAddress,
+    attestationSystemAddress,
+    transactionValueThreshold = '100'
 }) => {
     const [sdk, setSdk] = useState<TrezaComplianceSDK | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +56,10 @@ export const ComplianceProvider: React.FC<ComplianceProviderProps> = ({
                 trezaTokenAddress: process.env.REACT_APP_TREZA_TOKEN_ADDRESS || "0x8278d4FbfaB7dac14eC0295421D0a2733b4504E5",
                 complianceVerifierAddress: process.env.REACT_APP_COMPLIANCE_VERIFIER_ADDRESS || "0x8c0C6e0Eaf6bc693745A1A3a722e2c9028BBe874",
                 complianceIntegrationAddress: process.env.REACT_APP_COMPLIANCE_INTEGRATION_ADDRESS || "0xf3ecfC409761D715F137Bfe7078Acec6d7F55428",
+                zkVerifyOracleAddress: zkVerifyOracleAddress || process.env.REACT_APP_ZKVERIFY_ORACLE_ADDRESS,
+                attestationSystemAddress: attestationSystemAddress || process.env.REACT_APP_ATTESTATION_SYSTEM_ADDRESS,
+                verificationMode,
+                transactionValueThreshold,
                 provider,
                 signer
             };

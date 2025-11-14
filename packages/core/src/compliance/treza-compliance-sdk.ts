@@ -16,8 +16,12 @@ export interface TrezaComplianceConfig {
     trezaTokenAddress: string;
     complianceVerifierAddress: string;
     complianceIntegrationAddress: string;
+    zkVerifyOracleAddress?: string;
+    attestationSystemAddress?: string;
     provider: ethers.Provider;
     signer?: ethers.Signer;
+    verificationMode?: 'fallback' | 'oracle' | 'attestation' | 'hybrid';
+    transactionValueThreshold?: string; // ETH value threshold for attestation vs oracle
 }
 
 export interface ComplianceRequirements {
@@ -53,6 +57,8 @@ export class TrezaComplianceSDK {
     private config: TrezaComplianceConfig;
     private complianceVerifierContract: ethers.Contract;
     private complianceIntegrationContract: ethers.Contract;
+    private zkVerifyOracleContract?: ethers.Contract;
+    private attestationSystemContract?: ethers.Contract;
     
     constructor(config: TrezaComplianceConfig) {
         this.config = config;
@@ -71,6 +77,24 @@ export class TrezaComplianceSDK {
             this.getComplianceIntegrationABI(),
             config.provider
         );
+        
+        // Initialize Oracle contract if provided
+        if (config.zkVerifyOracleAddress) {
+            this.zkVerifyOracleContract = new ethers.Contract(
+                config.zkVerifyOracleAddress,
+                this.getZKVerifyOracleABI(),
+                config.provider
+            );
+        }
+        
+        // Initialize Attestation System contract if provided
+        if (config.attestationSystemAddress) {
+            this.attestationSystemContract = new ethers.Contract(
+                config.attestationSystemAddress,
+                this.getAttestationSystemABI(),
+                config.provider
+            );
+        }
     }
     
     /**
@@ -339,6 +363,224 @@ export class TrezaComplianceSDK {
     }
     
     /**
+     * Process verification using Oracle system
+     * @param zkPassportResult ZKPassport verification result
+     * @param userAddress User's Ethereum address
+     * @returns Verification result
+     */
+    async processVerificationWithOracle(
+        zkPassportResult: any,
+        userAddress: string
+    ): Promise<VerificationResult> {
+        console.log("🔮 Processing verification with Oracle system...");
+        
+        if (!this.zkVerifyOracleContract) {
+            throw new Error("Oracle contract not configured");
+        }
+        
+        try {
+            // Step 1: Process through zkVerify bridge
+            const complianceProof = await this.zkVerifyBridge.processComplianceVerification(
+                zkPassportResult,
+                userAddress
+            );
+            
+            // Step 2: Check if oracle has verified this proof
+            const isVerified = await this.zkVerifyOracleContract.isProofVerified(complianceProof.proofHash);
+            
+            if (!isVerified) {
+                // Wait for oracle verification (in production, you'd poll or use events)
+                console.log("⏳ Waiting for oracle verification...");
+                await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second wait
+                
+                const isVerifiedAfterWait = await this.zkVerifyOracleContract.isProofVerified(complianceProof.proofHash);
+                if (!isVerifiedAfterWait) {
+                    throw new Error("Oracle verification timeout");
+                }
+            }
+            
+            // Step 3: Submit to compliance contract
+            const transactionHash = await this.submitComplianceToContract(complianceProof);
+            
+            const complianceStatus: ComplianceStatus = {
+                isCompliant: true,
+                verificationLevel: complianceProof.verificationLevel,
+                expirationTime: Date.now() + (365 * 24 * 60 * 60 * 1000),
+                attributes: complianceProof.attributes,
+                zkVerifyReceipt: complianceProof.zkVerifyReceipt
+            };
+            
+            console.log("✅ Oracle verification completed successfully");
+            
+            return {
+                success: true,
+                userAddress,
+                complianceStatus,
+                transactionHash
+            };
+            
+        } catch (error) {
+            console.error("❌ Error in oracle verification:", error);
+            
+            return {
+                success: false,
+                userAddress,
+                complianceStatus: {
+                    isCompliant: false,
+                    verificationLevel: "error",
+                    expirationTime: 0,
+                    attributes: {
+                        ageVerified: false,
+                        nationalityVerified: false,
+                        uniquenessVerified: false
+                    }
+                },
+                error: error.message
+            };
+        }
+    }
+    
+    /**
+     * Process verification using Attestation system
+     * @param zkPassportResult ZKPassport verification result
+     * @param userAddress User's Ethereum address
+     * @param attestationLevel Required attestation level
+     * @returns Verification result
+     */
+    async processVerificationWithAttestation(
+        zkPassportResult: any,
+        userAddress: string,
+        attestationLevel: 'basic' | 'enhanced' | 'institutional' = 'basic'
+    ): Promise<VerificationResult> {
+        console.log("🏛️ Processing verification with Attestation system...");
+        
+        if (!this.attestationSystemContract) {
+            throw new Error("Attestation system contract not configured");
+        }
+        
+        try {
+            // Step 1: Process through zkVerify bridge
+            const complianceProof = await this.zkVerifyBridge.processComplianceVerification(
+                zkPassportResult,
+                userAddress
+            );
+            
+            // Step 2: Check if attestation exists
+            const attestationLevelMap = { basic: 0, enhanced: 1, institutional: 2 };
+            const isAttested = await this.attestationSystemContract.isProofAttested(
+                complianceProof.proofHash,
+                attestationLevelMap[attestationLevel]
+            );
+            
+            if (!isAttested) {
+                // In production, this would trigger attester notification
+                console.log("⏳ Waiting for professional attestation...");
+                throw new Error("Attestation required - please wait for professional review");
+            }
+            
+            // Step 3: Submit to compliance contract
+            const transactionHash = await this.submitComplianceToContract(complianceProof);
+            
+            const complianceStatus: ComplianceStatus = {
+                isCompliant: true,
+                verificationLevel: attestationLevel,
+                expirationTime: Date.now() + (180 * 24 * 60 * 60 * 1000), // 180 days for attestations
+                attributes: complianceProof.attributes,
+                zkVerifyReceipt: complianceProof.zkVerifyReceipt
+            };
+            
+            console.log("✅ Attestation verification completed successfully");
+            
+            return {
+                success: true,
+                userAddress,
+                complianceStatus,
+                transactionHash
+            };
+            
+        } catch (error) {
+            console.error("❌ Error in attestation verification:", error);
+            
+            return {
+                success: false,
+                userAddress,
+                complianceStatus: {
+                    isCompliant: false,
+                    verificationLevel: "error",
+                    expirationTime: 0,
+                    attributes: {
+                        ageVerified: false,
+                        nationalityVerified: false,
+                        uniquenessVerified: false
+                    }
+                },
+                error: error.message
+            };
+        }
+    }
+    
+    /**
+     * Process verification using Hybrid system (smart routing)
+     * @param zkPassportResult ZKPassport verification result
+     * @param userAddress User's Ethereum address
+     * @param transactionValue Transaction value in ETH (for routing decision)
+     * @returns Verification result
+     */
+    async processVerificationHybrid(
+        zkPassportResult: any,
+        userAddress: string,
+        transactionValue?: string
+    ): Promise<VerificationResult> {
+        console.log("🔀 Processing verification with Hybrid system...");
+        
+        const threshold = this.config.transactionValueThreshold || "100"; // Default 100 ETH
+        const useAttestation = transactionValue && 
+            parseFloat(transactionValue) >= parseFloat(threshold);
+        
+        if (useAttestation && this.attestationSystemContract) {
+            console.log("📈 High-value transaction - using attestation system");
+            return this.processVerificationWithAttestation(zkPassportResult, userAddress, 'enhanced');
+        } else if (this.zkVerifyOracleContract) {
+            console.log("📊 Standard transaction - using oracle system");
+            return this.processVerificationWithOracle(zkPassportResult, userAddress);
+        } else {
+            console.log("🔄 Falling back to standard verification");
+            return this.processVerificationResult(zkPassportResult, userAddress);
+        }
+    }
+    
+    /**
+     * Get verification mode configuration
+     * @returns Current verification mode and available systems
+     */
+    async getVerificationMode(): Promise<{
+        mode: string;
+        oracleAvailable: boolean;
+        attestationAvailable: boolean;
+        currentMode: number;
+    }> {
+        try {
+            const currentMode = await this.complianceVerifierContract.verificationMode();
+            const modeNames = ['fallback', 'oracle', 'attestation', 'hybrid'];
+            
+            return {
+                mode: this.config.verificationMode || modeNames[currentMode] || 'fallback',
+                oracleAvailable: !!this.zkVerifyOracleContract,
+                attestationAvailable: !!this.attestationSystemContract,
+                currentMode: currentMode
+            };
+        } catch (error) {
+            console.error("❌ Error getting verification mode:", error);
+            return {
+                mode: 'fallback',
+                oracleAvailable: false,
+                attestationAvailable: false,
+                currentMode: 0
+            };
+        }
+    }
+    
+    /**
      * Submit compliance proof to smart contract
      * @param complianceProof Proof from zkVerify bridge
      * @returns Transaction hash
@@ -381,6 +623,33 @@ export class TrezaComplianceSDK {
             "function isUserCompliant(address user) external returns (bool)"
         ];
     }
+    
+    /**
+     * Get ABI for ZKVerifyOracle contract
+     */
+    private getZKVerifyOracleABI(): string[] {
+        return [
+            "function isProofVerified(bytes32 proofHash) external view returns (bool verified)",
+            "function getVerificationResult(bytes32 proofHash) external view returns (tuple(bool verified, bytes32 zkVerifyBlockHash, bytes32 proofHash, uint256 timestamp, address submitter, uint256 confirmations, bool finalized))",
+            "function isResultFinalized(bytes32 proofHash) external view returns (bool finalized)",
+            "function getActiveOracleCount() external view returns (uint256 count)",
+            "function getRequiredConfirmations() external view returns (uint256 confirmations)"
+        ];
+    }
+    
+    /**
+     * Get ABI for AttestationSystem contract
+     */
+    private getAttestationSystemABI(): string[] {
+        return [
+            "function isProofAttested(bytes32 proofHash, uint8 minLevel) external view returns (bool valid)",
+            "function getAttestation(bytes32 proofHash) external view returns (tuple(bool verified, address attester, uint8 level, uint8 attesterTier, uint8 status, bytes32 zkVerifyBlockHash, uint256 timestamp, uint256 expirationTimestamp, uint256 stakeAmount, string metadata, bytes signature))",
+            "function getAttesterProfile(address attester) external view returns (tuple(bool isActive, uint8 tier, uint256 totalAttestations, uint256 successfulAttestations, uint256 challengedAttestations, uint256 stakedAmount, uint256 earnedFees, uint256 slashedAmount, uint256 registrationTimestamp, string companyName, string licenseNumber, string jurisdiction, string[] specializations))",
+            "function isQualifiedAttester(address attester, uint8 level) external view returns (bool qualified)",
+            "function getAttestationFee(address attester, uint8 level) external view returns (uint256 fee)",
+            "function getActiveAttesterCount() external view returns (uint256 count)"
+        ];
+    }
 }
 
 // Example usage and helper functions
@@ -393,7 +662,13 @@ export class TrezaComplianceHelper {
      */
     static createSDK(
         provider: ethers.Provider,
-        signer?: ethers.Signer
+        signer?: ethers.Signer,
+        options?: {
+            verificationMode?: 'fallback' | 'oracle' | 'attestation' | 'hybrid';
+            zkVerifyOracleAddress?: string;
+            attestationSystemAddress?: string;
+            transactionValueThreshold?: string;
+        }
     ): TrezaComplianceSDK {
         const config: TrezaComplianceConfig = {
             zkPassportDomain: "treza.finance",
@@ -401,6 +676,41 @@ export class TrezaComplianceHelper {
             trezaTokenAddress: "0x8278d4FbfaB7dac14eC0295421D0a2733b4504E5", // Mock TREZA Token on Sepolia
             complianceVerifierAddress: "0x8c0C6e0Eaf6bc693745A1A3a722e2c9028BBe874", // ZKPassportVerifier on Sepolia
             complianceIntegrationAddress: "0xf3ecfC409761D715F137Bfe7078Acec6d7F55428", // TrezaComplianceIntegration on Sepolia
+            zkVerifyOracleAddress: options?.zkVerifyOracleAddress, // Will be set after deployment
+            attestationSystemAddress: options?.attestationSystemAddress, // Will be set after deployment
+            verificationMode: options?.verificationMode || 'hybrid',
+            transactionValueThreshold: options?.transactionValueThreshold || "100", // 100 ETH threshold
+            provider,
+            signer
+        };
+        
+        return new TrezaComplianceSDK(config);
+    }
+    
+    /**
+     * Create SDK instance for production with Oracle and Attestation systems
+     * @param provider Ethereum provider
+     * @param signer Optional signer for transactions
+     * @param oracleAddress ZKVerifyOracle contract address
+     * @param attestationAddress AttestationSystem contract address
+     * @returns Configured SDK instance with production systems
+     */
+    static createProductionSDK(
+        provider: ethers.Provider,
+        oracleAddress: string,
+        attestationAddress: string,
+        signer?: ethers.Signer
+    ): TrezaComplianceSDK {
+        const config: TrezaComplianceConfig = {
+            zkPassportDomain: "treza.finance",
+            zkVerifyEndpoint: "https://api.zkverify.io",
+            trezaTokenAddress: "0x8278d4FbfaB7dac14eC0295421D0a2733b4504E5",
+            complianceVerifierAddress: "0x8c0C6e0Eaf6bc693745A1A3a722e2c9028BBe874",
+            complianceIntegrationAddress: "0xf3ecfC409761D715F137Bfe7078Acec6d7F55428",
+            zkVerifyOracleAddress: oracleAddress,
+            attestationSystemAddress: attestationAddress,
+            verificationMode: 'hybrid',
+            transactionValueThreshold: "100", // 100 ETH threshold
             provider,
             signer
         };
