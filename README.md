@@ -1,716 +1,455 @@
-# Treza Platform SDK
+# TREZA SDK
 
-TypeScript/JavaScript SDK for the Treza Platform API. This SDK enables developers to manage secure enclaves, integrate GitHub repositories, and handle platform resources with wallet-based authentication.
+[![npm version](https://badge.fury.io/js/%40treza%2Fsdk.svg)](https://badge.fury.io/js/%40treza%2Fsdk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue)](https://www.typescriptlang.org/)
 
-## Features
+Privacy-first DeFi development tools with zero-knowledge compliance integration.
 
-🔐 **Enclave Management** - Create, update, delete, and manage secure enclaves  
-⏸️ **Lifecycle Control** - Pause, resume, and terminate enclaves with real-time status tracking  
-📜 **Comprehensive Logs** - Access application, deployment, and error logs from all sources  
-🐳 **Docker Integration** - Search Docker Hub and browse image tags  
-🏗️ **Provider System** - Support for multiple enclave providers (AWS Nitro, etc.)  
-⚙️ **Task Scheduling** - Create and manage scheduled tasks within enclaves  
-🔑 **API Key Management** - Generate and manage API keys with fine-grained permissions  
-🐙 **GitHub Integration** - OAuth flow, repository access, and branch management  
-💳 **Wallet Authentication** - Secure wallet-based authentication system  
-🌍 **Multi-Region Support** - Deploy enclaves across different AWS regions  
-📱 **TypeScript First** - Full TypeScript support with comprehensive type definitions
+## 🚀 Features
 
-## Installation
+- **🛡️ Privacy-First Compliance** - ZKPassport integration for zero-knowledge identity verification
+- **⚡ Easy Integration** - Simple APIs for complex privacy-preserving operations
+- **🔧 Developer Friendly** - TypeScript support with comprehensive documentation
+- **⚛️ React Components** - Pre-built UI components for seamless integration
+- **🌐 Multi-Chain Support** - Works across Ethereum and compatible networks
+- **🔐 Secure by Design** - No personal data storage, cryptographic proofs only
+
+## 📦 Packages
+
+| Package | Description | Version |
+|---------|-------------|---------|
+| [`@treza/sdk`](./packages/core) | Core SDK functionality | ![npm](https://img.shields.io/npm/v/@treza/sdk) |
+| [`@treza/react`](./packages/react) | React components and hooks | ![npm](https://img.shields.io/npm/v/@treza/react) |
+
+## 🚀 Quick Start
+
+### Installation
 
 ```bash
-npm install @treza/sdk
+# Core SDK
+npm install @treza/sdk ethers
+
+# React components (includes core SDK)
+npm install @treza/react @treza/sdk ethers react react-dom
 ```
 
-## Quick Start
+### Basic Usage
 
 ```typescript
-import { TrezaClient } from '@treza/sdk';
+import { TrezaComplianceSDK } from '@treza/sdk';
+import { ethers } from 'ethers';
 
-// Initialize the client
-const client = new TrezaClient();
-const walletAddress = '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB';
+// Initialize the SDK
+const provider = new ethers.BrowserProvider(window.ethereum);
+const signer = provider.getSigner();
 
-// Get available providers
-const providers = await client.getProviders();
-
-// Create an enclave
-const enclave = await client.createEnclave({
-  name: 'My Trading Bot',
-  description: 'Secure environment for trading algorithms',
-  region: 'us-east-1',
-  walletAddress: walletAddress,
-  providerId: providers[0].id, // Use the first available provider
-  providerConfig: {
-    dockerImage: 'trading-bot:latest',
-    cpuCount: 2,
-    memoryMiB: 512
-  }
+const sdk = new TrezaComplianceSDK({
+  zkPassportDomain: "your-domain.com",
+  zkVerifyEndpoint: "https://api.zkverify.io",
+  trezaTokenAddress: "0x...",
+  complianceVerifierAddress: "0x...",
+  complianceIntegrationAddress: "0x...",
+  provider,
+  signer
 });
 
-console.log('Enclave created:', enclave.id);
-console.log('Status:', enclave.status); // PENDING_DEPLOY, DEPLOYING, DEPLOYED, etc.
-
-// 🆕 NEW: Manage enclave lifecycle
-if (enclave.status === 'DEPLOYED') {
-  // Pause the enclave
-  const pausedEnclave = await client.pauseEnclave(enclave.id, walletAddress);
-  console.log('Enclave paused:', pausedEnclave.enclave.status); // PAUSING
-  
-  // Resume the enclave
-  const resumedEnclave = await client.resumeEnclave(enclave.id, walletAddress);
-  console.log('Enclave resumed:', resumedEnclave.enclave.status); // RESUMING
-}
-
-// 🆕 NEW: Get comprehensive logs
-const logs = await client.getEnclaveLogs(enclave.id, 'application');
-console.log('Application logs:', logs.logs.application?.length || 0);
-
-// 🆕 NEW: Search Docker Hub
-const dockerImages = await client.searchDockerImages('hello-world');
-console.log('Found', dockerImages.results.length, 'Docker images');
-
-// Get all enclaves for a wallet
-const enclaves = await client.getEnclaves(walletAddress);
-console.log('Total enclaves:', enclaves.length);
-```
-
-## Configuration
-
-The `TrezaClient` accepts the following configuration options:
-
-```typescript
-const client = new TrezaClient({
-  baseUrl: 'https://app.trezalabs.com', // Optional: API base URL (default shown)
-  timeout: 30000                    // Optional: Request timeout in ms (default: 30000)
-});
-```
-
-## API Reference
-
-### Provider Management
-
-#### `getProviders(): Promise<Provider[]>`
-
-Retrieve all available enclave providers.
-
-```typescript
-const providers = await client.getProviders();
-console.log('Available providers:', providers.length);
-providers.forEach(provider => {
-  console.log(`- ${provider.name} (${provider.id})`);
-  console.log(`  Regions: ${provider.regions.join(', ')}`);
-});
-```
-
-#### `getProvider(providerId: string): Promise<Provider>`
-
-Get details for a specific provider.
-
-```typescript
-const provider = await client.getProvider('aws-nitro');
-console.log('Provider:', provider.name);
-console.log('Config schema:', provider.configSchema);
-```
-
-### Enclave Management
-
-#### `getEnclaves(walletAddress: string): Promise<Enclave[]>`
-
-Retrieve all enclaves associated with a wallet address.
-
-```typescript
-const enclaves = await client.getEnclaves('0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
-console.log('Found enclaves:', enclaves.length);
-```
-
-#### `createEnclave(request: CreateEnclaveRequest): Promise<Enclave>`
-
-Create a new secure enclave.
-
-```typescript
-const enclave = await client.createEnclave({
-  name: 'ML Training Environment',
-  description: 'Secure environment for model training',
-  region: 'us-east-1',
-  walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB',
-  providerId: 'aws-nitro',
-  providerConfig: {
-    dockerImage: 'ml-training:latest',
-    cpuCount: 4,
-    memoryMiB: 2048
-  },
-  githubConnection: {
-    isConnected: false
-  }
-});
-```
-
-#### `updateEnclave(request: UpdateEnclaveRequest): Promise<Enclave>`
-
-Update an existing enclave.
-
-```typescript
-const updatedEnclave = await client.updateEnclave({
-  id: 'enc_123456',
-  walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB',
-  description: 'Updated description',
-  region: 'us-west-2',
-  providerConfig: {
-    dockerImage: 'ml-training:v2',
-    cpuCount: 8,
-    memoryMiB: 4096
-  }
-});
-```
-
-#### `deleteEnclave(enclaveId: string, walletAddress: string): Promise<string>`
-
-Delete an enclave.
-
-```typescript
-const message = await client.deleteEnclave('enc_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
-console.log(message); // "Enclave deleted successfully"
-```
-
-### 🆕 Enclave Lifecycle Management
-
-#### `getEnclave(enclaveId: string): Promise<Enclave>`
-
-Get details for a specific enclave.
-
-```typescript
-const enclave = await client.getEnclave('enc_123456');
-console.log('Enclave status:', enclave.status);
-console.log('Enclave region:', enclave.region);
-```
-
-#### `pauseEnclave(enclaveId: string, walletAddress: string): Promise<EnclaveLifecycleResponse>`
-
-Pause a running enclave.
-
-```typescript
-const result = await client.pauseEnclave('enc_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
-console.log('Message:', result.message);
-console.log('New status:', result.enclave.status); // PAUSING
-```
-
-#### `resumeEnclave(enclaveId: string, walletAddress: string): Promise<EnclaveLifecycleResponse>`
-
-Resume a paused enclave.
-
-```typescript
-const result = await client.resumeEnclave('enc_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
-console.log('Message:', result.message);
-console.log('New status:', result.enclave.status); // RESUMING
-```
-
-#### `terminateEnclave(enclaveId: string, walletAddress: string): Promise<EnclaveLifecycleResponse>`
-
-Terminate an enclave (this will destroy the enclave).
-
-```typescript
-const result = await client.terminateEnclave('enc_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
-console.log('Message:', result.message);
-console.log('New status:', result.enclave.status); // PENDING_DESTROY
-```
-
-### 🆕 Enclave Logs
-
-#### `getEnclaveLogs(enclaveId: string, logType?: string, limit?: number): Promise<LogsResponse>`
-
-Get logs for an enclave from various sources.
-
-```typescript
-// Get all logs
-const allLogs = await client.getEnclaveLogs('enc_123456', 'all', 100);
-console.log('Available log types:', Object.keys(allLogs.logs));
-
-// Get only application logs
-const appLogs = await client.getEnclaveLogs('enc_123456', 'application', 50);
-const applicationLogs = appLogs.logs.application || [];
-console.log('Application log entries:', applicationLogs.length);
-
-// Get only error logs
-const errorLogs = await client.getEnclaveLogs('enc_123456', 'errors', 20);
-const errors = errorLogs.logs.errors || [];
-console.log('Error entries:', errors.length);
-
-// Available log types: 'all', 'ecs', 'stepfunctions', 'lambda', 'application', 'errors'
-```
-
-### Task Management
-
-#### `getTasks(walletAddress: string): Promise<Task[]>`
-
-Retrieve all tasks associated with a wallet address.
-
-```typescript
-const tasks = await client.getTasks('0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
-console.log('Found tasks:', tasks.length);
-```
-
-#### `createTask(request: CreateTaskRequest): Promise<Task>`
-
-Create a new scheduled task.
-
-```typescript
-const task = await client.createTask({
-  name: 'Daily Price Monitor',
-  description: 'Monitor cryptocurrency prices and send alerts',
-  enclaveId: 'enc_123456',
-  schedule: '0 9 * * *', // Every day at 9 AM
-  walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB'
-});
-```
-
-#### `updateTask(request: UpdateTaskRequest): Promise<Task>`
-
-Update an existing task.
-
-```typescript
-const updatedTask = await client.updateTask({
-  id: 'task_123456',
-  walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB',
-  schedule: '0 */6 * * *', // Every 6 hours
-  status: 'running'
-});
-```
-
-#### `deleteTask(taskId: string, walletAddress: string): Promise<string>`
-
-Delete a task.
-
-```typescript
-const message = await client.deleteTask('task_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
-console.log(message); // "Task deleted successfully"
-```
-
-### API Key Management
-
-#### `getApiKeys(walletAddress: string): Promise<ApiKey[]>`
-
-Retrieve all API keys associated with a wallet address.
-
-```typescript
-const apiKeys = await client.getApiKeys('0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
-console.log('Found API keys:', apiKeys.length);
-```
-
-#### `createApiKey(request: CreateApiKeyRequest): Promise<ApiKey>`
-
-Create a new API key with specified permissions.
-
-```typescript
-const apiKey = await client.createApiKey({
-  name: 'Production API Key',
-  permissions: ['enclaves:read', 'tasks:read', 'logs:read'],
-  walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB'
-});
-console.log('API Key created:', apiKey.key); // Only shown on creation
-```
-
-#### `updateApiKey(request: UpdateApiKeyRequest): Promise<ApiKey>`
-
-Update an existing API key.
-
-```typescript
-const updatedApiKey = await client.updateApiKey({
-  id: 'key_123456',
-  walletAddress: '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB',
-  permissions: ['enclaves:read', 'enclaves:write', 'tasks:read'],
-  status: 'active'
-});
-```
-
-#### `deleteApiKey(apiKeyId: string, walletAddress: string): Promise<string>`
-
-Delete an API key.
-
-```typescript
-const message = await client.deleteApiKey('key_123456', '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB');
-console.log(message); // "API key deleted successfully"
-```
-
-### GitHub Integration
-
-#### `getGitHubAuthUrl(state?: string): Promise<GitHubAuthResponse>`
-
-Get GitHub OAuth authorization URL.
-
-```typescript
-const auth = await client.getGitHubAuthUrl('custom-state');
-console.log('Visit this URL to authorize:', auth.authUrl);
-```
-
-#### `exchangeGitHubCode(request: GitHubTokenRequest): Promise<GitHubTokenResponse>`
-
-Exchange OAuth authorization code for access token.
-
-```typescript
-const tokenResponse = await client.exchangeGitHubCode({
-  code: 'authorization-code-from-callback',
-  state: 'custom-state'
+// Initiate compliance verification
+const verificationUrl = await sdk.initiateVerification({
+  minAge: 18,
+  allowedCountries: ['US', 'CA', 'GB'],
+  requiredAttributes: ['firstname']
 });
 
-console.log('Access token:', tokenResponse.access_token);
-console.log('User:', tokenResponse.user.login);
+console.log('Scan this QR code:', verificationUrl);
 ```
 
-#### `getGitHubRepositories(accessToken: string): Promise<RepositoriesResponse>`
+### React Integration
 
-Get user's GitHub repositories.
-
-```typescript
-const repos = await client.getGitHubRepositories('gho_xxxxxxxxxxxxxxxxxxxx');
-console.log('Repositories:', repos.repositories.length);
-```
-
-#### `getRepositoryBranches(request: GetBranchesRequest): Promise<BranchesResponse>`
-
-Get branches for a specific repository.
-
-```typescript
-const branches = await client.getRepositoryBranches({
-  accessToken: 'gho_xxxxxxxxxxxxxxxxxxxx',
-  repository: 'username/repo-name'
-});
-
-console.log('Branches:', branches.branches.map(b => b.name));
-```
-
-### 🆕 Docker Hub Integration
-
-#### `searchDockerImages(query: string): Promise<DockerSearchResponse>`
-
-Search Docker Hub for container images.
-
-```typescript
-const searchResults = await client.searchDockerImages('hello-world');
-console.log('Found images:', searchResults.count);
-
-searchResults.results.forEach(image => {
-  console.log(`- ${image.name}: ${image.description}`);
-  console.log(`  ⭐ ${image.stars} stars, Official: ${image.official}`);
-});
-```
-
-#### `getDockerTags(repository: string): Promise<DockerTagsResponse>`
-
-Get available tags for a specific Docker repository.
-
-```typescript
-const tags = await client.getDockerTags('library/node');
-console.log('Available tags:', tags.tags.length);
-
-tags.tags.slice(0, 5).forEach(tag => {
-  const sizeMB = (tag.size / (1024 * 1024)).toFixed(1);
-  console.log(`- ${tag.name} (${sizeMB}MB, updated: ${tag.lastUpdated})`);
-});
-```
-
-## Usage Examples
-
-### Complete Enclave Setup
-
-```typescript
-import { TrezaClient } from '@treza/sdk';
-
-const client = new TrezaClient();
-const walletAddress = '0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB';
-
-async function setupEnclave() {
-  try {
-    // Get available providers
-    const providers = await client.getProviders();
-    console.log('🏗️  Available providers:', providers.length);
-
-    // Create enclave
-    const enclave = await client.createEnclave({
-      name: 'Data Analytics Enclave',
-      description: 'Secure environment for data processing',
-      region: 'us-east-1',
-      walletAddress: walletAddress,
-      providerId: providers[0].id,
-      providerConfig: {
-        dockerImage: 'analytics:latest',
-        cpuCount: 4,
-        memoryMiB: 2048
-      }
-    });
-
-    console.log('✅ Enclave created:', enclave.id);
-    console.log('📊 Status:', enclave.status);
-    console.log('🌍 Region:', enclave.region);
-    console.log('🏗️  Provider:', enclave.providerId);
-
-    // Create a scheduled task
-    const task = await client.createTask({
-      name: 'Data Processing Task',
-      description: 'Process data files every hour',
-      enclaveId: enclave.id,
-      schedule: '0 * * * *', // Every hour
-      walletAddress: walletAddress
-    });
-
-    console.log('⚙️  Task created:', task.id);
-
-    // Update enclave with GitHub integration
-    const updatedEnclave = await client.updateEnclave({
-      id: enclave.id,
-      walletAddress: walletAddress,
-      githubConnection: {
-        isConnected: true,
-        selectedRepo: 'myorg/data-analytics',
-        selectedBranch: 'main'
-      }
-    });
-
-    console.log('🔗 GitHub connected:', updatedEnclave.githubConnection?.selectedRepo);
-
-  } catch (error) {
-    console.error('❌ Setup failed:', error);
-  }
-}
-
-setupEnclave();
-```
-
-### GitHub OAuth Flow
-
-```typescript
-import { TrezaClient } from '@treza/sdk';
-
-const client = new TrezaClient();
-
-async function handleGitHubAuth() {
-  try {
-    // Step 1: Get authorization URL
-    const auth = await client.getGitHubAuthUrl();
-    console.log('🔗 Authorize GitHub access at:', auth.authUrl);
-    
-    // Step 2: User visits URL and authorizes
-    // Step 3: Handle the callback (you'll get the code)
-    const code = 'code-from-callback'; // This comes from your OAuth callback
-    
-    // Step 4: Exchange code for token
-    const tokenResponse = await client.exchangeGitHubCode({ code });
-    console.log('✅ GitHub authenticated for user:', tokenResponse.user.login);
-    
-    // Step 5: Use token to access repositories
-    const repos = await client.getGitHubRepositories(tokenResponse.access_token);
-    console.log('📚 Available repositories:');
-    repos.repositories.forEach(repo => {
-      console.log(`  - ${repo.fullName} (${repo.language || 'No language'})`);
-    });
-
-  } catch (error) {
-    console.error('❌ GitHub auth failed:', error);
-  }
-}
-```
-
-### Repository and Branch Management
-
-```typescript
-async function manageRepository() {
-  const accessToken = 'gho_xxxxxxxxxxxxxxxxxxxx';
-  
-  try {
-    // Get repositories
-    const repos = await client.getGitHubRepositories(accessToken);
-    const selectedRepo = repos.repositories[0];
-    
-    console.log('📊 Selected repository:', selectedRepo.fullName);
-    console.log('🔒 Private:', selectedRepo.private);
-    console.log('⭐ Language:', selectedRepo.language);
-    
-    // Get branches for selected repository
-    const branches = await client.getRepositoryBranches({
-      accessToken: accessToken,
-      repository: selectedRepo.fullName
-    });
-    
-    console.log('🌿 Available branches:');
-    branches.branches.forEach(branch => {
-      console.log(`  - ${branch.name} (${branch.commit.sha.substring(0, 7)})`);
-    });
-    
-  } catch (error) {
-    console.error('❌ Repository management failed:', error);
-  }
-}
-```
-
-### Error Handling
-
-```typescript
-import { TrezaSdkError } from '@treza/sdk';
-
-async function handleErrors() {
-  try {
-    const enclaves = await client.getEnclaves('invalid-wallet');
-  } catch (error) {
-    if (error instanceof TrezaSdkError) {
-      console.error('🚨 Treza SDK Error:', {
-        message: error.message,
-        code: error.code,
-        statusCode: error.statusCode,
-        details: error.details
-      });
-      
-      // Handle specific error types
-      if (error.statusCode === 400) {
-        console.log('💡 Tip: Check your wallet address format');
-      } else if (error.statusCode === 404) {
-        console.log('💡 Tip: Enclave not found or access denied');
-      }
-    } else {
-      console.error('❌ Unexpected error:', error);
-    }
-  }
-}
-```
-
-## TypeScript Support
-
-The SDK is built with TypeScript and exports comprehensive type definitions:
-
-```typescript
+```tsx
+import React from 'react';
 import {
-  // Core types
-  TrezaConfig,
-  Enclave,
-  Provider,
-  Task,
-  ApiKey,
-  GitHubConnection,
-  
-  // Request/Response types
-  CreateEnclaveRequest,
-  UpdateEnclaveRequest,
-  CreateTaskRequest,
-  UpdateTaskRequest,
-  CreateApiKeyRequest,
-  UpdateApiKeyRequest,
-  EnclaveResponse,
-  EnclavesResponse,
-  ProviderResponse,
-  ProvidersResponse,
-  TaskResponse,
-  TasksResponse,
-  ApiKeyResponse,
-  ApiKeysResponse,
-  
-  // 🆕 NEW: Lifecycle management types
-  EnclaveLifecycleRequest,
-  EnclaveLifecycleResponse,
-  
-  // 🆕 NEW: Logs types
-  LogEntry,
-  LogsResponse,
-  
-  // 🆕 NEW: Docker types
-  DockerImage,
-  DockerTag,
-  DockerSearchResponse,
-  DockerTagsResponse,
-  
-  // GitHub types
-  GitHubUser,
-  Repository,
-  Branch,
-  GitHubAuthResponse,
-  GitHubTokenResponse,
-  
-  // Utility types
-  ApiError,
-  TrezaSdkError
-} from '@treza/sdk';
+  ComplianceProvider,
+  ComplianceVerification,
+  ComplianceStatusDisplay
+} from '@treza/react';
+import { ethers } from 'ethers';
+
+function App() {
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  const signer = provider.getSigner();
+  const userAddress = "0x...";
+
+  return (
+    <ComplianceProvider provider={provider} signer={signer}>
+      <div>
+        <h1>TREZA DApp</h1>
+        
+        {/* Show compliance status */}
+        <ComplianceStatusDisplay 
+          userAddress={userAddress}
+          showDetails={true}
+        />
+        
+        {/* Verification flow */}
+        <ComplianceVerification
+          userAddress={userAddress}
+          requirements={{
+            minAge: 18,
+            allowedCountries: ['US', 'CA', 'GB']
+          }}
+          onVerificationComplete={(result) => {
+            console.log('Verified!', result);
+          }}
+        />
+      </div>
+    </ComplianceProvider>
+  );
+}
 ```
 
-## Environment Variables
+## ⚛️ React Components & Hooks
 
-For development and testing, you can set these environment variables:
+The `@treza/react` package provides comprehensive React integration for ZKPassport compliance.
 
-```bash
-# Optional: Custom API endpoint
-TREZA_BASE_URL=https://app.trezalabs.com
+### Components
 
-# For examples: Your wallet address
-WALLET_ADDRESS=0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB
+#### `ComplianceProvider`
+Wraps your application to provide compliance context.
 
-# For GitHub integration examples
-GITHUB_ACCESS_TOKEN=gho_xxxxxxxxxxxxxxxxxxxx
+```tsx
+<ComplianceProvider provider={ethersProvider} signer={ethersSigner}>
+  {/* Your app */}
+</ComplianceProvider>
 ```
 
-## Development
+#### `ComplianceVerification`
+Handles the complete verification flow with QR code generation.
 
-### Building
+```tsx
+<ComplianceVerification
+  userAddress="0x..."
+  requirements={{
+    minAge: 18,
+    allowedCountries: ['US', 'CA', 'GB'],
+    requiredAttributes: ['firstname']
+  }}
+  onVerificationComplete={(result) => {
+    console.log('Verification complete:', result);
+  }}
+/>
+```
+
+**Props:**
+- `userAddress` - User's wallet address
+- `requirements` - Compliance requirements (age, countries, attributes)
+- `onVerificationComplete` - Callback when verification succeeds
+- `onError` - Error callback
+- `className` - Custom CSS class
+
+#### `ComplianceStatusDisplay`
+Shows the current compliance status of a user.
+
+```tsx
+<ComplianceStatusDisplay 
+  userAddress="0x..."
+  showDetails={true}
+  autoRefresh={true}
+  refreshInterval={30000}
+/>
+```
+
+**Props:**
+- `userAddress` - User's wallet address
+- `showDetails` - Show detailed compliance information
+- `autoRefresh` - Automatically refresh status
+- `refreshInterval` - Refresh interval in milliseconds (default: 30000)
+- `className` - Custom CSS class
+
+#### `GovernanceEligibility`
+Check and display governance voting eligibility.
+
+```tsx
+<GovernanceEligibility
+  userAddress="0x..."
+  proposalId={1}
+  onEligibilityChange={(eligible) => {
+    console.log('User eligible:', eligible);
+  }}
+/>
+```
+
+**Props:**
+- `userAddress` - User's wallet address
+- `proposalId` - Governance proposal ID
+- `onEligibilityChange` - Callback when eligibility changes
+- `className` - Custom CSS class
+
+### Hooks
+
+#### `useWallet()`
+Manage wallet connection and state.
+
+```tsx
+const {
+  isConnected,
+  isConnecting,
+  walletInfo,
+  provider,
+  signer,
+  address,
+  error,
+  connect,
+  disconnect,
+  switchNetwork
+} = useWallet();
+
+// Connect wallet
+await connect();
+
+// Switch network
+await switchNetwork(1); // Mainnet
+```
+
+#### `useCompliance(provider?, signer?)`
+Access compliance functionality.
+
+```tsx
+const {
+  isInitialized,
+  isLoading,
+  error,
+  checkStatus,
+  initiateVerification,
+  completeVerification,
+  checkGovernanceEligibility
+} = useCompliance(provider, signer);
+
+// Check compliance status
+const status = await checkStatus('0x...');
+
+// Initiate verification
+const qrUrl = await initiateVerification({
+  minAge: 18,
+  allowedCountries: ['US', 'CA']
+});
+```
+
+#### `useVerificationFlow(provider?, signer?)`
+Simplified verification flow management.
+
+```tsx
+const {
+  isVerifying,
+  verificationUrl,
+  status,
+  error,
+  startVerification,
+  pollStatus,
+  reset
+} = useVerificationFlow(provider, signer);
+
+// Start verification and get QR code
+await startVerification({
+  userAddress: '0x...',
+  requirements: { minAge: 18 }
+});
+
+// Poll for completion
+const result = await pollStatus('0x...');
+```
+
+#### `useTreza()`
+Combined hook for full TREZA functionality (wallet + compliance).
+
+```tsx
+const {
+  // Wallet
+  isConnected,
+  address,
+  connect,
+  disconnect,
+  
+  // Compliance
+  checkCompliance,
+  startVerification,
+  
+  // State
+  isLoading,
+  error
+} = useTreza();
+```
+
+### Custom Styling
+
+All components accept a `className` prop for custom styling. You can also import the default styles:
+
+```tsx
+import { complianceStyles } from '@treza/react';
+
+// Inject into your app
+const styleTag = document.createElement('style');
+styleTag.innerHTML = complianceStyles;
+document.head.appendChild(styleTag);
+```
+
+### Environment Variables
 
 ```bash
+# React app environment variables
+REACT_APP_TREZA_TOKEN_ADDRESS=0x...
+REACT_APP_COMPLIANCE_VERIFIER_ADDRESS=0x...
+REACT_APP_COMPLIANCE_INTEGRATION_ADDRESS=0x...
+```
+
+### ZKPassport Integration
+
+The React components seamlessly integrate with ZKPassport for zero-knowledge identity verification:
+
+1. **User initiates verification** → `ComplianceVerification` generates QR code
+2. **User scans QR** → Opens ZKPassport mobile app
+3. **ZKPassport verifies identity** → Government ID verification
+4. **Zero-knowledge proof generated** → No personal data shared
+5. **Proof submitted to zkVerify** → Proof verified on blockchain
+6. **Compliance status updated** → Components automatically reflect new status
+
+## 🏗️ Architecture
+
+The TREZA SDK provides a complete privacy-preserving compliance solution:
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Your DApp     │    │   TREZA SDK     │    │   ZKPassport    │
+│                 │    │                 │    │                 │
+│ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
+│ │   React     │◄┼────┼►│   React     │ │    │ │   Mobile    │ │
+│ │ Components  │ │    │ │ Components  │ │    │ │    App      │ │
+│ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
+│                 │    │        │        │    │        │        │
+│ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
+│ │   Business  │◄┼────┼►│    Core     │◄┼────┼►│ ZK Proofs   │ │
+│ │    Logic    │ │    │ │     SDK     │ │    │ │ Generation  │ │
+│ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Ethereum      │    │    zkVerify     │    │  Government     │
+│  Smart          │    │   Blockchain    │    │      ID         │
+│  Contracts      │    │                 │    │  Verification   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+## 📚 Documentation
+
+### Core Concepts
+
+- **[Getting Started](./docs/getting-started.md)** - Basic setup and first integration
+- **[Compliance System](./docs/compliance.md)** - Understanding zero-knowledge compliance
+- **[React Components](./docs/react-components.md)** - UI component documentation
+- **[API Reference](./docs/api-reference.md)** - Complete API documentation
+
+### Guides
+
+- **[Integration Guide](./docs/integration-guide.md)** - Step-by-step integration
+- **[Customization](./docs/customization.md)** - Customizing components and behavior
+- **[Testing](./docs/testing.md)** - Testing your integration
+- **[Deployment](./docs/deployment.md)** - Production deployment guide
+
+### Examples
+
+- **[Basic Integration](./examples/basic-usage.ts)** - Simple SDK usage
+- **[React DApp](./examples/react-dapp/)** - Complete React application
+- **[Next.js Integration](./examples/nextjs-compliance/)** - Next.js with compliance
+- **[Governance Integration](./examples/governance/)** - DAO governance with compliance
+
+## 🔧 Development
+
+### Prerequisites
+
+- Node.js 16+
+- npm 8+
+- Git
+
+### Setup
+
+```bash
+git clone https://github.com/treza-labs/treza-sdk.git
+cd treza-sdk
+npm install
+```
+
+### Development Commands
+
+```bash
+# Build all packages
 npm run build
-```
 
-### Development Mode
+# Build specific package
+npm run build:core
+npm run build:react
 
-```bash
+# Development mode (watch)
 npm run dev
-```
 
-### Testing
+# Run tests
+npm run test
 
-```bash
-npm test
-```
-
-### Linting
-
-```bash
+# Lint and format
 npm run lint
-npm run lint:fix
 ```
 
-## Examples
+### Project Structure
 
-Check out the comprehensive examples in the [`examples/`](./examples/) directory:
-
-- **Basic Usage** (`examples/basic-usage.ts`) - Complete examples of all SDK functionality
-- **Provider Management** - Discovering and using enclave providers
-- **Enclave Management** - Creating, updating, and managing enclaves with provider configuration
-- **Task Management** - Creating and scheduling tasks within enclaves
-- **API Key Management** - Generating and managing API keys with permissions
-- **GitHub Integration** - OAuth flow and repository management
-- **Error Handling** - Proper error handling patterns
-
-Run the examples:
-
-```bash
-# Set your environment variables first
-export WALLET_ADDRESS=0x4B0897b0513fdc7C541B6d9D7E929C4e5364D2dB
-export GITHUB_ACCESS_TOKEN=gho_xxxxxxxxxxxxxxxxxxxx
-
-# Run the examples
-npx ts-node examples/basic-usage.ts
+```
+packages/
+├── core/                   # Core SDK (@treza/sdk)
+│   ├── src/
+│   │   ├── compliance/     # Compliance functionality
+│   │   └── index.ts        # Main exports
+│   └── package.json
+├── react/                  # React components (@treza/react)
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── hooks/          # React hooks
+│   │   └── index.ts        # Main exports
+│   └── package.json
+examples/                   # Usage examples
+docs/                       # Documentation
 ```
 
-## Contributing
+## 🤝 Contributing
 
-We welcome contributions! Please see our contributing guidelines for more details.
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-## License
+### Development Workflow
 
-MIT License - see [LICENSE](./LICENSE) file for details.
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes
+4. Add tests for new functionality
+5. Ensure all tests pass: `npm test`
+6. Commit your changes: `git commit -m 'Add amazing feature'`
+7. Push to the branch: `git push origin feature/amazing-feature`
+8. Open a Pull Request
 
-## Support
+## 📄 License
 
-- 📖 **Documentation**: [docs.trezalabs.com](https://docs.trezalabs.com)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/treza-labs/treza-sdk/issues)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## About Treza
+## 🔗 Links
 
-Treza provides secure enclave infrastructure for decentralized applications, enabling developers to build with confidence in secure, verifiable execution environments.
+- **Website**: [treza.finance](https://treza.finance)
+- **Documentation**: [docs.treza.finance](https://docs.treza.finance)
+- **Smart Contracts**: [treza-contracts](https://github.com/treza-labs/treza-contracts)
+- **Discord**: [Join our community](https://discord.gg/treza)
+- **Twitter**: [@TrezaFinance](https://twitter.com/TrezaFinance)
+
+## 🆘 Support
+
+- **Documentation**: [docs.treza.finance](https://docs.treza.finance)
+- **Discord**: [Community support](https://discord.gg/treza)
+- **GitHub Issues**: [Report bugs](https://github.com/treza-labs/treza-sdk/issues)
+- **Email**: [dev@treza.finance](mailto:dev@treza.finance)
 
 ---
-
-**⭐ Star this repository if you find it helpful!** 
