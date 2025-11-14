@@ -8,7 +8,9 @@ Privacy-first DeFi development tools with zero-knowledge compliance integration.
 
 ## 🚀 Features
 
-- **🛡️ Privacy-First Compliance** - ZKPassport integration for zero-knowledge identity verification
+- **🛡️ Production zkVerify Integration** - Oracle and Attestation systems for enterprise-grade verification
+- **🤖 Smart Verification Routing** - Automatic selection between Oracle (fast) and Attestation (secure) modes
+- **🏛️ Professional Attestation** - KYC'd institutional attesters with staking and slashing mechanisms
 - **⚡ Easy Integration** - Simple APIs for complex privacy-preserving operations
 - **🔧 Developer Friendly** - TypeScript support with comprehensive documentation
 - **⚛️ React Components** - Pre-built UI components for seamless integration
@@ -37,24 +39,37 @@ npm install @treza/react @treza/sdk ethers react react-dom
 ### Basic Usage
 
 ```typescript
-import { TrezaComplianceSDK } from '@treza/sdk';
+import { TrezaComplianceSDK, TrezaComplianceHelper } from '@treza/sdk';
 import { ethers } from 'ethers';
 
 // Initialize the SDK
 const provider = new ethers.BrowserProvider(window.ethereum);
-const signer = provider.getSigner();
+const signer = await provider.getSigner();
 
-const sdk = new TrezaComplianceSDK({
+// Option 1: Production SDK with Oracle and Attestation systems
+const sdk = TrezaComplianceHelper.createProductionSDK(
+  provider,
+  "0x...", // zkVerifyOracleAddress
+  "0x...", // attestationSystemAddress
+  signer
+);
+
+// Option 2: Custom configuration
+const customSdk = new TrezaComplianceSDK({
   zkPassportDomain: "your-domain.com",
   zkVerifyEndpoint: "https://api.zkverify.io",
   trezaTokenAddress: "0x...",
   complianceVerifierAddress: "0x...",
   complianceIntegrationAddress: "0x...",
+  zkVerifyOracleAddress: "0x...",        // New: Oracle system
+  attestationSystemAddress: "0x...",     // New: Attestation system
+  verificationMode: 3,                   // New: Hybrid mode (0=fallback, 1=oracle, 2=attestation, 3=hybrid)
+  transactionValueThreshold: "1000000",  // New: $1M threshold for attestation
   provider,
   signer
 });
 
-// Initiate compliance verification
+// Initiate compliance verification (automatically routes to best verification method)
 const verificationUrl = await sdk.initiateVerification({
   minAge: 18,
   allowedCountries: ['US', 'CA', 'GB'],
@@ -62,6 +77,10 @@ const verificationUrl = await sdk.initiateVerification({
 });
 
 console.log('Scan this QR code:', verificationUrl);
+
+// Check verification mode being used
+const mode = await sdk.getVerificationMode();
+console.log('Current verification mode:', mode); // 0=fallback, 1=oracle, 2=attestation, 3=hybrid
 ```
 
 ### React Integration
@@ -77,11 +96,19 @@ import { ethers } from 'ethers';
 
 function App() {
   const provider = new ethers.BrowserProvider(window.ethereum);
-  const signer = provider.getSigner();
+  const signer = await provider.getSigner();
   const userAddress = "0x...";
 
   return (
-    <ComplianceProvider provider={provider} signer={signer}>
+    <ComplianceProvider 
+      provider={provider} 
+      signer={signer}
+      // New: zkVerify production system configuration
+      verificationMode={3}                    // Hybrid mode
+      zkVerifyOracleAddress="0x..."          // Oracle contract
+      attestationSystemAddress="0x..."       // Attestation contract
+      transactionValueThreshold="1000000"    // $1M threshold
+    >
       <div>
         <h1>TREZA DApp</h1>
         
@@ -91,7 +118,7 @@ function App() {
           showDetails={true}
         />
         
-        {/* Verification flow */}
+        {/* Verification flow - automatically uses best verification method */}
         <ComplianceVerification
           userAddress={userAddress}
           requirements={{
@@ -99,7 +126,9 @@ function App() {
             allowedCountries: ['US', 'CA', 'GB']
           }}
           onVerificationComplete={(result) => {
-            console.log('Verified!', result);
+            console.log('Verified with method:', result.verificationMethod);
+            console.log('Oracle used:', result.oracleVerified);
+            console.log('Attestation used:', result.attestationVerified);
           }}
         />
       </div>
@@ -108,20 +137,64 @@ function App() {
 }
 ```
 
+## 🏭 zkVerify Production Integration
+
+The TREZA SDK now includes production-ready zkVerify integration with Oracle and Attestation systems:
+
+### 🤖 Oracle System
+- **Fast Verification**: Automated verification for high-volume transactions
+- **Multi-Oracle Consensus**: Multiple authorized oracles for redundancy
+- **Cryptographic Proofs**: Signature verification of zkVerify results
+- **Gas Optimized**: Efficient on-chain storage and retrieval
+
+### 👨‍💼 Attestation System  
+- **Professional Review**: KYC'd institutional and individual attesters
+- **Tier-Based Access**: Bronze, Silver, Gold, Platinum attester levels
+- **Economic Security**: Staking mechanism with slashing for incorrect attestations
+- **Rich Metadata**: Detailed context for attestation decisions
+
+### 🔄 Hybrid Verification
+- **Smart Routing**: Automatic selection between Oracle and Attestation
+- **Value-Based Logic**: High-value transactions → Attestation, High-volume → Oracle
+- **Fallback Modes**: Graceful degradation when systems are unavailable
+- **Runtime Configuration**: Admin controls for verification strategies
+
+### 📊 Verification Modes
+
+| Mode | Description | Use Case | Speed | Security |
+|------|-------------|----------|-------|----------|
+| **0 - Fallback** | Basic verification without zkVerify | Development/Testing | ⚡ Fast | 🔒 Basic |
+| **1 - Oracle** | Automated oracle verification | High-volume DeFi | ⚡ Fast | 🔒🔒 High |
+| **2 - Attestation** | Professional attester review | High-value transactions | 🐌 Slower | 🔒🔒🔒 Maximum |
+| **3 - Hybrid** | Smart routing based on value/risk | Production systems | ⚡🐌 Variable | 🔒🔒🔒 Adaptive |
+
 ## ⚛️ React Components & Hooks
 
-The `@treza/react` package provides comprehensive React integration for ZKPassport compliance.
+The `@treza/react` package provides comprehensive React integration for ZKPassport compliance with full zkVerify support.
 
 ### Components
 
 #### `ComplianceProvider`
-Wraps your application to provide compliance context.
+Wraps your application to provide compliance context with zkVerify integration.
 
 ```tsx
-<ComplianceProvider provider={ethersProvider} signer={ethersSigner}>
+<ComplianceProvider 
+  provider={ethersProvider} 
+  signer={ethersSigner}
+  verificationMode={3}                    // 0=fallback, 1=oracle, 2=attestation, 3=hybrid
+  zkVerifyOracleAddress="0x..."          // Oracle contract address
+  attestationSystemAddress="0x..."       // Attestation contract address
+  transactionValueThreshold="1000000"    // Threshold for attestation routing
+>
   {/* Your app */}
 </ComplianceProvider>
 ```
+
+**New Props:**
+- `verificationMode` - Verification strategy (0-3)
+- `zkVerifyOracleAddress` - Oracle system contract address
+- `attestationSystemAddress` - Attestation system contract address  
+- `transactionValueThreshold` - USD value threshold for attestation routing
 
 #### `ComplianceVerification`
 Handles the complete verification flow with QR code generation.
@@ -300,22 +373,32 @@ document.head.appendChild(styleTag);
 REACT_APP_TREZA_TOKEN_ADDRESS=0x...
 REACT_APP_COMPLIANCE_VERIFIER_ADDRESS=0x...
 REACT_APP_COMPLIANCE_INTEGRATION_ADDRESS=0x...
+
+# New: zkVerify production system addresses
+REACT_APP_ZKVERIFY_ORACLE_ADDRESS=0x...
+REACT_APP_ATTESTATION_SYSTEM_ADDRESS=0x...
+
+# New: Verification configuration
+REACT_APP_VERIFICATION_MODE=3                    # 0=fallback, 1=oracle, 2=attestation, 3=hybrid
+REACT_APP_TRANSACTION_VALUE_THRESHOLD=1000000    # USD threshold for attestation routing
 ```
 
 ### ZKPassport Integration
 
-The React components seamlessly integrate with ZKPassport for zero-knowledge identity verification:
+The React components seamlessly integrate with ZKPassport and zkVerify for production-grade zero-knowledge identity verification:
 
 1. **User initiates verification** → `ComplianceVerification` generates QR code
-2. **User scans QR** → Opens ZKPassport mobile app
+2. **User scans QR** → Opens ZKPassport mobile app  
 3. **ZKPassport verifies identity** → Government ID verification
 4. **Zero-knowledge proof generated** → No personal data shared
-5. **Proof submitted to zkVerify** → Proof verified on blockchain
-6. **Compliance status updated** → Components automatically reflect new status
+5. **Proof submitted to zkVerify** → Proof verified on zkVerify blockchain
+6. **TREZA SDK routes verification** → Oracle (fast) or Attestation (secure) based on transaction value
+7. **On-chain verification** → Oracle consensus or professional attester review
+8. **Compliance status updated** → Components automatically reflect new status with verification method details
 
 ## 🏗️ Architecture
 
-The TREZA SDK provides a complete privacy-preserving compliance solution:
+The TREZA SDK provides a complete privacy-preserving compliance solution with production zkVerify integration:
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -327,8 +410,9 @@ The TREZA SDK provides a complete privacy-preserving compliance solution:
 │ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
 │                 │    │        │        │    │        │        │
 │ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
-│ │   Business  │◄┼────┼►│    Core     │◄┼────┼►│ ZK Proofs   │ │
-│ │    Logic    │ │    │ │     SDK     │ │    │ │ Generation  │ │
+│ │   Business  │◄┼────┼►│ Core SDK +  │◄┼────┼►│ ZK Proofs   │ │
+│ │    Logic    │ │    │ │ Hybrid      │ │    │ │ Generation  │ │
+│ │             │ │    │ │ Routing     │ │    │ │             │ │
 │ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
@@ -337,7 +421,22 @@ The TREZA SDK provides a complete privacy-preserving compliance solution:
 │   Ethereum      │    │    zkVerify     │    │  Government     │
 │  Smart          │    │   Blockchain    │    │      ID         │
 │  Contracts      │    │                 │    │  Verification   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+│                 │    └─────────────────┘    └─────────────────┘
+│ ┌─────────────┐ │             │
+│ │   Oracle    │◄┼─────────────┘
+│ │  System     │ │    ⚡ Fast verification
+│ └─────────────┘ │      for high-volume
+│                 │
+│ ┌─────────────┐ │
+│ │ Attestation │ │    🔒 Secure verification  
+│ │  System     │ │      for high-value
+│ └─────────────┘ │
+│                 │
+│ ┌─────────────┐ │
+│ │ ZKPassport  │ │    🛡️ Main compliance
+│ │  Verifier   │ │      contract
+│ └─────────────┘ │
+└─────────────────┘
 ```
 
 ## 🔧 Development
