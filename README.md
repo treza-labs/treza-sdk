@@ -515,17 +515,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔗 Links
 
-- **Website**: [treza.finance](https://treza.finance)
-- **Documentation**: [docs.treza.finance](https://docs.treza.finance)
+- **Website**: [trezalabs.com](https://trezalabs.com)
+- **Documentation**: [docs.trezalabs.com](https://docs.trezalabs.com)
 - **Smart Contracts**: [treza-contracts](https://github.com/treza-labs/treza-contracts)
-- **Discord**: [Join our community](https://discord.gg/treza)
-- **Twitter**: [@TrezaFinance](https://twitter.com/TrezaFinance)
+- **Twitter**: [@trezalabs](https://twitter.com/trezalabs)
 
 ## 🆘 Support
 
-- **Documentation**: [docs.treza.finance](https://docs.treza.finance)
-- **Discord**: [Community support](https://discord.gg/treza)
+- **Documentation**: [docs.trezalabs.com](https://docs.trezalabs.com)
 - **GitHub Issues**: [Report bugs](https://github.com/treza-labs/treza-sdk/issues)
-- **Email**: [dev@treza.finance](mailto:dev@treza.finance)
+- **Email**: [hello@trezalabs.com](mailto:hello@trezalabs.com)
 
 ---
