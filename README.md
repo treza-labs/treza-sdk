@@ -340,29 +340,6 @@ The TREZA SDK provides a complete privacy-preserving compliance solution:
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 📚 Documentation
-
-### Core Concepts
-
-- **[Getting Started](./docs/getting-started.md)** - Basic setup and first integration
-- **[Compliance System](./docs/compliance.md)** - Understanding zero-knowledge compliance
-- **[React Components](./docs/react-components.md)** - UI component documentation
-- **[API Reference](./docs/api-reference.md)** - Complete API documentation
-
-### Guides
-
-- **[Integration Guide](./docs/integration-guide.md)** - Step-by-step integration
-- **[Customization](./docs/customization.md)** - Customizing components and behavior
-- **[Testing](./docs/testing.md)** - Testing your integration
-- **[Deployment](./docs/deployment.md)** - Production deployment guide
-
-### Examples
-
-- **[Basic Integration](./examples/basic-usage.ts)** - Simple SDK usage
-- **[React DApp](./examples/react-dapp/)** - Complete React application
-- **[Next.js Integration](./examples/nextjs-compliance/)** - Next.js with compliance
-- **[Governance Integration](./examples/governance/)** - DAO governance with compliance
-
 ## 🔧 Development
 
 ### Prerequisites

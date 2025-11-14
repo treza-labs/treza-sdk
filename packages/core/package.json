@@ -1,6 +1,6 @@
 {
   "name": "@treza/sdk",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Core TREZA SDK for privacy-first DeFi development",
   "keywords": [
     "treza",

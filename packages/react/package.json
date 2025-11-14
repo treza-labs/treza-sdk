@@ -1,6 +1,6 @@
 {
   "name": "@treza/react",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "React components for TREZA SDK - Privacy-first DeFi UI components",
   "keywords": [
     "treza",
