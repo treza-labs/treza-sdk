@@ -13,14 +13,14 @@
     "components",
     "web3"
   ],
-  "homepage": "https://treza.finance",
+  "homepage": "https://trezalabs.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/treza-labs/treza-sdk.git",
     "directory": "packages/react"
   },
   "license": "MIT",
-  "author": "TREZA Labs <dev@treza.finance>",
+  "author": "TREZA Labs <dev@trezalabs.com>",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
