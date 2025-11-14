@@ -1,6 +1,6 @@
 {
   "name": "@treza/react",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "React components for TREZA SDK - Privacy-first DeFi UI components",
   "keywords": [
     "treza",
@@ -39,7 +39,9 @@
     "test:watch": "jest --watch",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@treza/sdk": "^0.0.6"
+  },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-node-resolve": "^15.2.3",
