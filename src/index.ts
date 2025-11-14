@@ -40,6 +40,12 @@ export {
   DockerTag,
   DockerSearchResponse,
   DockerTagsResponse,
+  AttestationDocument,
+  AttestationVerification,
+  AttestationResponse,
+  VerificationRequest,
+  VerificationResult,
+  VerificationStatus,
   ApiError,
   TrezaSdkError
 } from './types';

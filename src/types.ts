@@ -519,6 +519,146 @@ export interface DockerTagsResponse {
 }
 
 /**
+ * Attestation document containing cryptographic proof
+ */
+export interface AttestationDocument {
+  /** Unique identifier for the enclave module */
+  moduleId: string;
+  /** SHA-384 digest of the enclave image */
+  digest: string;
+  /** Unix timestamp when attestation was generated */
+  timestamp: number;
+  /** Platform Configuration Registers */
+  pcrs: {
+    /** PCR0: Hash of the enclave image file */
+    0: string;
+    /** PCR1: Linux kernel and bootstrap hash */
+    1: string;
+    /** PCR2: Application hash */
+    2: string;
+    /** PCR8: Signing certificate hash */
+    8: string;
+  };
+  /** X.509 certificate for verification */
+  certificate: string;
+  /** Certificate authority bundle */
+  cabundle: string[];
+  /** Public key for verification */
+  publicKey?: string;
+  /** User-provided data included in attestation */
+  userData?: string;
+  /** Nonce for replay attack protection */
+  nonce?: string;
+}
+
+/**
+ * Attestation verification details
+ */
+export interface AttestationVerification {
+  /** Whether the attestation is valid */
+  isValid: boolean;
+  /** Trust level based on verification results */
+  trustLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  /** Current verification status */
+  verificationStatus: 'VERIFIED' | 'PENDING' | 'FAILED';
+  /** Integrity score as a percentage */
+  integrityScore: number;
+  /** Timestamp of last verification */
+  lastVerified: string;
+  /** List of verification errors (if any) */
+  errors?: string[];
+}
+
+/**
+ * Complete attestation response
+ */
+export interface AttestationResponse {
+  /** Enclave identifier */
+  enclaveId: string;
+  /** Attestation document */
+  attestationDocument: AttestationDocument;
+  /** Verification details */
+  verification: AttestationVerification;
+  /** API endpoints for integration */
+  endpoints: {
+    /** URL for third-party verification */
+    verificationUrl: string;
+    /** API endpoint for attestation data */
+    apiEndpoint: string;
+    /** Webhook URL for real-time verification updates */
+    webhookUrl: string;
+  };
+}
+
+/**
+ * Verification request payload
+ */
+export interface VerificationRequest {
+  /** Base64 encoded attestation document (optional) */
+  attestationDocument?: string;
+  /** Nonce for replay attack protection */
+  nonce?: string;
+  /** Challenge string for additional verification */
+  challenge?: string;
+}
+
+/**
+ * Detailed verification result
+ */
+export interface VerificationResult {
+  /** Whether the attestation verification passed */
+  isValid: boolean;
+  /** Overall trust level */
+  trustLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  /** Detailed verification checks */
+  verificationDetails: {
+    /** Whether PCR measurements are valid */
+    pcrVerification: boolean;
+    /** Whether certificate chain verification passed */
+    certificateChain: boolean;
+    /** Whether timestamp is within acceptable range */
+    timestampValid: boolean;
+    /** Whether provided nonce matches */
+    nonceMatches: boolean;
+    /** Whether cryptographic signature is valid */
+    signatureValid: boolean;
+  };
+  /** Compliance status checks */
+  complianceChecks: {
+    /** SOC 2 compliance status */
+    soc2: boolean;
+    /** HIPAA compliance status */
+    hipaa: boolean;
+    /** FIPS 140-2 compliance status */
+    fips: boolean;
+    /** Common Criteria compliance status */
+    commonCriteria: boolean;
+  };
+  /** Risk score (lower is better) */
+  riskScore: number;
+  /** Security recommendations and observations */
+  recommendations: string[];
+  /** Timestamp when verification was performed */
+  verifiedAt: string;
+}
+
+/**
+ * Quick verification status response
+ */
+export interface VerificationStatus {
+  /** Enclave identifier */
+  enclaveId: string;
+  /** Whether enclave is verified */
+  isVerified: boolean;
+  /** Current enclave status */
+  status: string;
+  /** Timestamp of last verification */
+  lastVerified: string | null;
+  /** Trust level */
+  trustLevel: 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
+}
+
+/**
  * Custom error class for Treza SDK
  */
 export class TrezaSdkError extends Error {

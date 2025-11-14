@@ -30,6 +30,10 @@ import {
   LogsResponse,
   DockerSearchResponse,
   DockerTagsResponse,
+  AttestationResponse,
+  VerificationRequest,
+  VerificationResult,
+  VerificationStatus,
   ApiError,
   TrezaSdkError
 } from './types';
@@ -457,6 +461,157 @@ export class TrezaClient {
       throw this.handleError(error, 'Failed to get Docker tags');
     }
   }
+
+  // ===== ATTESTATION METHODS =====
+
+  /**
+   * Get attestation document and verification details for a deployed enclave
+   * @param enclaveId Enclave identifier
+   * @returns Promise resolving to attestation data with verification details
+   */
+  async getAttestation(enclaveId: string): Promise<AttestationResponse> {
+    try {
+      const response: AxiosResponse<AttestationResponse> = await this.client.get(`/api/enclaves/${enclaveId}/attestation`);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to get attestation document');
+    }
+  }
+
+  /**
+   * Get quick verification status for an enclave
+   * @param enclaveId Enclave identifier
+   * @returns Promise resolving to verification status
+   */
+  async getVerificationStatus(enclaveId: string): Promise<VerificationStatus> {
+    try {
+      const response: AxiosResponse<VerificationStatus> = await this.client.get(`/api/enclaves/${enclaveId}/attestation/verify`);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to get verification status');
+    }
+  }
+
+  /**
+   * Perform comprehensive verification of an attestation document
+   * @param enclaveId Enclave identifier
+   * @param request Optional verification parameters
+   * @returns Promise resolving to detailed verification result
+   */
+  async verifyAttestation(enclaveId: string, request?: VerificationRequest): Promise<VerificationResult> {
+    try {
+      const response: AxiosResponse<VerificationResult> = await this.client.post(
+        `/api/enclaves/${enclaveId}/attestation/verify`,
+        request || {}
+      );
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to verify attestation');
+    }
+  }
+
+  /**
+   * Generate code snippets for integrating with enclave attestation
+   * @param enclaveId Enclave identifier
+   * @param language Programming language for the snippet
+   * @returns Promise resolving to code snippet
+   */
+  async generateIntegrationSnippet(enclaveId: string, language: 'javascript' | 'python' | 'curl' | 'java' = 'javascript'): Promise<string> {
+    try {
+      const attestation = await this.getAttestation(enclaveId);
+      
+      switch (language) {
+        case 'javascript':
+          return `// Verify Treza Enclave Attestation
+const response = await fetch('${attestation.endpoints.apiEndpoint}');
+const attestation = await response.json();
+
+// Verify the attestation
+const verifyResponse = await fetch('${attestation.endpoints.verificationUrl}', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ nonce: 'your-nonce-here' })
+});
+const verification = await verifyResponse.json();
+
+if (verification.isValid && verification.trustLevel === 'HIGH') {
+  console.log('Enclave verification successful!');
+  console.log('Integrity Score:', verification.complianceChecks);
+} else {
+  console.error('Enclave verification failed:', verification.recommendations);
+}`;
+
+        case 'python':
+          return `# Verify Treza Enclave Attestation
+import requests
+import json
+
+# Get attestation document
+response = requests.get('${attestation.endpoints.apiEndpoint}')
+attestation = response.json()
+
+# Verify the attestation
+verify_response = requests.post('${attestation.endpoints.verificationUrl}', 
+    headers={'Content-Type': 'application/json'},
+    json={'nonce': 'your-nonce-here'}
+)
+verification = verify_response.json()
+
+if verification['isValid'] and verification['trustLevel'] == 'HIGH':
+    print('Enclave verification successful!')
+    print('Integrity Score:', verification['complianceChecks'])
+else:
+    print('Enclave verification failed:', verification['recommendations'])`;
+
+        case 'curl':
+          return `# Verify Treza Enclave Attestation
+# Get attestation document
+curl -X GET "${attestation.endpoints.apiEndpoint}"
+
+# Verify the attestation
+curl -X POST "${attestation.endpoints.verificationUrl}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"nonce": "your-nonce-here"}'`;
+
+        case 'java':
+          return `// Verify Treza Enclave Attestation
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.URI;
+
+HttpClient client = HttpClient.newHttpClient();
+
+// Get attestation document
+HttpRequest attestationRequest = HttpRequest.newBuilder()
+    .uri(URI.create("${attestation.endpoints.apiEndpoint}"))
+    .GET()
+    .build();
+    
+HttpResponse<String> attestationResponse = client.send(attestationRequest, 
+    HttpResponse.BodyHandlers.ofString());
+
+// Verify the attestation
+HttpRequest verifyRequest = HttpRequest.newBuilder()
+    .uri(URI.create("${attestation.endpoints.verificationUrl}"))
+    .POST(HttpRequest.BodyPublishers.ofString("{\\"nonce\\": \\"your-nonce-here\\"}"))
+    .header("Content-Type", "application/json")
+    .build();
+    
+HttpResponse<String> verifyResponse = client.send(verifyRequest, 
+    HttpResponse.BodyHandlers.ofString());
+
+System.out.println("Verification result: " + verifyResponse.body());`;
+
+        default:
+          throw new TrezaSdkError('Unsupported language', 'INVALID_LANGUAGE');
+      }
+    } catch (error) {
+      throw this.handleError(error, 'Failed to generate integration snippet');
+    }
+  }
+
+
 
   // ===== UTILITY METHODS =====
 

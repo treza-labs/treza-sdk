@@ -1,0 +1,72 @@
+{
+  "name": "@treza/react",
+  "version": "1.0.0",
+  "description": "React components for TREZA SDK - Privacy-first DeFi UI components",
+  "keywords": [
+    "treza",
+    "react",
+    "defi",
+    "privacy",
+    "zero-knowledge",
+    "compliance",
+    "ui",
+    "components",
+    "web3"
+  ],
+  "homepage": "https://treza.finance",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/treza-labs/treza-sdk.git",
+    "directory": "packages/react"
+  },
+  "license": "MIT",
+  "author": "TREZA Labs <dev@treza.finance>",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "build:watch": "rollup -c -w",
+    "clean": "rm -rf dist",
+    "dev": "rollup -c -w",
+    "lint": "eslint src/**/*.{ts,tsx} --fix",
+    "lint:check": "eslint src/**/*.{ts,tsx}",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.5",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.1",
+    "@types/jest": "^29.5.8",
+    "@types/react": "^18.2.38",
+    "@types/react-dom": "^18.2.17",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "rollup": "^4.6.1",
+    "rollup-plugin-dts": "^6.1.0",
+    "ts-jest": "^29.1.1",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.0"
+  },
+  "peerDependencies": {
+    "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+    "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+    "ethers": "^6.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
+

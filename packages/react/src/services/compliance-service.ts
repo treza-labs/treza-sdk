@@ -1,4 +1,4 @@
-import { TrezaComplianceSDK, ComplianceStatus, VerificationResult, ComplianceRequirements } from '../../../core/src/compliance/treza-compliance-sdk';
+import { TrezaComplianceSDK, ComplianceStatus, VerificationResult, ComplianceRequirements } from '@treza/sdk';
 import { ethers } from 'ethers';
 
 /**

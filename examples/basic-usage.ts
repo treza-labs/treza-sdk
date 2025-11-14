@@ -586,6 +586,111 @@ async function dockerSearchExample() {
   }
 }
 
+// Example: NEW - Attestation and Verification
+async function attestationExample() {
+  const client = new TrezaClient({
+    baseUrl: process.env.TREZA_BASE_URL,
+  });
+
+  try {
+    console.log('🔐 Getting enclaves for attestation testing...');
+    
+    // Get enclaves to find a deployed one
+    const enclaves = await client.getEnclaves(WALLET_ADDRESS);
+    const deployedEnclave = enclaves.find(e => e.status === 'DEPLOYED');
+    
+    if (!deployedEnclave) {
+      console.log('⚠️  No deployed enclaves found - skipping attestation example');
+      console.log('   (Attestation is only available for deployed enclaves)');
+      return;
+    }
+
+    console.log(`🛡️  Testing attestation for enclave: ${deployedEnclave.name} (${deployedEnclave.id})`);
+
+    // Get attestation document
+    console.log('\n📋 Getting attestation document...');
+    const attestation = await client.getAttestation(deployedEnclave.id);
+    
+    console.log('✅ Attestation document retrieved!');
+    console.log(`📊 Trust Level: ${attestation.verification.trustLevel}`);
+    console.log(`🔒 Verification Status: ${attestation.verification.verificationStatus}`);
+    console.log(`📈 Integrity Score: ${attestation.verification.integrityScore}%`);
+    
+    // Show PCR measurements
+    console.log('\n🔐 Platform Configuration Registers (PCRs):');
+    console.log(`   PCR0 (Enclave Image): ${attestation.attestationDocument.pcrs[0].substring(0, 16)}...`);
+    console.log(`   PCR1 (Linux Kernel): ${attestation.attestationDocument.pcrs[1].substring(0, 16)}...`);
+    console.log(`   PCR2 (Application): ${attestation.attestationDocument.pcrs[2].substring(0, 16)}...`);
+    console.log(`   PCR8 (Certificate): ${attestation.attestationDocument.pcrs[8].substring(0, 16)}...`);
+
+
+
+    // Get quick verification status
+    console.log('\n⚡ Getting quick verification status...');
+    const verificationStatus = await client.getVerificationStatus(deployedEnclave.id);
+    console.log(`✅ Quick verification: ${verificationStatus.isVerified ? 'VERIFIED' : 'NOT VERIFIED'}`);
+    console.log(`🔒 Trust Level: ${verificationStatus.trustLevel}`);
+
+    // Perform comprehensive verification
+    console.log('\n🔍 Performing comprehensive verification with nonce...');
+    const verificationResult = await client.verifyAttestation(deployedEnclave.id, {
+      nonce: Math.random().toString(36).substring(2, 15),
+      challenge: 'test-verification-' + Date.now()
+    });
+
+    console.log('✅ Comprehensive verification completed!');
+    console.log(`📊 Verification Details:`);
+    console.log(`   🔐 PCR Verification: ${verificationResult.verificationDetails.pcrVerification ? '✅' : '❌'}`);
+    console.log(`   📜 Certificate Chain: ${verificationResult.verificationDetails.certificateChain ? '✅' : '❌'}`);
+    console.log(`   ⏰ Timestamp Valid: ${verificationResult.verificationDetails.timestampValid ? '✅' : '❌'}`);
+    console.log(`   🔢 Nonce Matches: ${verificationResult.verificationDetails.nonceMatches ? '✅' : '❌'}`);
+    console.log(`   ✍️  Signature Valid: ${verificationResult.verificationDetails.signatureValid ? '✅' : '❌'}`);
+
+    console.log(`\n📋 Compliance Checks:`);
+    console.log(`   SOC 2: ${verificationResult.complianceChecks.soc2 ? '✅' : '❌'}`);
+    console.log(`   HIPAA: ${verificationResult.complianceChecks.hipaa ? '✅' : '❌'}`);
+    console.log(`   FIPS 140-2: ${verificationResult.complianceChecks.fips ? '✅' : '❌'}`);
+    console.log(`   Common Criteria: ${verificationResult.complianceChecks.commonCriteria ? '✅' : '❌'}`);
+
+    console.log(`\n⚠️  Risk Score: ${verificationResult.riskScore}/100 (lower is better)`);
+    
+    if (verificationResult.recommendations.length > 0) {
+      console.log(`\n💡 Recommendations:`);
+      verificationResult.recommendations.forEach((rec, index) => {
+        console.log(`   ${index + 1}. ${rec}`);
+      });
+    }
+
+    // Generate integration snippets
+    console.log('\n📄 Generating integration code snippets...');
+    
+    const jsSnippet = await client.generateIntegrationSnippet(deployedEnclave.id, 'javascript');
+    console.log(`\n🟨 JavaScript Integration Example:`);
+    console.log(jsSnippet.split('\n').slice(0, 8).join('\n') + '\n// ... (truncated for display)');
+
+    const pythonSnippet = await client.generateIntegrationSnippet(deployedEnclave.id, 'python');
+    console.log(`\n🐍 Python Integration Example:`);
+    console.log(pythonSnippet.split('\n').slice(0, 8).join('\n') + '\n# ... (truncated for display)');
+
+    // Show API endpoints for third-party integration
+    console.log('\n🔗 API Endpoints for Third-Party Integration:');
+    console.log(`   🔍 Verification URL: ${attestation.endpoints.verificationUrl}`);
+    console.log(`   📋 API Endpoint: ${attestation.endpoints.apiEndpoint}`);
+    console.log(`   🔔 Webhook URL: ${attestation.endpoints.webhookUrl}`);
+
+  } catch (error) {
+    if (error instanceof TrezaSdkError) {
+      console.error('❌ Attestation Error:', {
+        message: error.message,
+        code: error.code,
+        statusCode: error.statusCode
+      });
+    } else {
+      console.error('❌ Unexpected error:', error);
+    }
+  }
+}
+
 // Example: Complete enclave setup with GitHub integration
 async function completeSetupExample() {
   const client = new TrezaClient();
@@ -675,8 +780,8 @@ async function completeSetupExample() {
 
 // Run examples
 if (require.main === module) {
-  console.log('=== Treza Platform SDK v0.2.0 Examples ===\n');
-  console.log('🆕 NEW: Enhanced with lifecycle management, logs, and Docker search!\n');
+  console.log('=== Treza Platform SDK v0.3.0 Examples ===\n');
+  console.log('🆕 NEW: Enhanced with cryptographic attestation and verification!\n');
   
   providerManagementExample()
     .then(() => {
@@ -694,6 +799,10 @@ if (require.main === module) {
     .then(() => {
       console.log('\n' + '='.repeat(60) + '\n');
       return dockerSearchExample(); // NEW
+    })
+    .then(() => {
+      console.log('\n' + '='.repeat(60) + '\n');
+      return attestationExample(); // NEW
     })
     .then(() => {
       console.log('\n' + '='.repeat(60) + '\n');
@@ -718,6 +827,12 @@ if (require.main === module) {
     .then(() => {
       console.log('\n🎉 All examples completed!');
       console.log('\n🆕 NEW FEATURES DEMONSTRATED:');
+      console.log('- 🛡️  Cryptographic Attestation Documents & PCR Measurements');
+      console.log('- 🔍 Comprehensive Attestation Verification & Compliance Checks');
+      console.log('- 📋 Developer Integration Tools & Code Generation');
+      console.log('- 🏦 Business Use Cases (Financial, Healthcare, Enterprise)');
+      console.log('');
+      console.log('\n📋 Previous Features:');
       console.log('- ⏸️  Enclave Lifecycle Management (pause, resume, terminate)');
       console.log('- 📜 Comprehensive Logs Access (application, ECS, Step Functions, Lambda, errors)');
       console.log('- 🐳 Docker Hub Integration (search images, get tags)');
@@ -726,7 +841,8 @@ if (require.main === module) {
       console.log('- Set WALLET_ADDRESS environment variable for enclave operations');
       console.log('- Set GITHUB_ACCESS_TOKEN environment variable for GitHub integration');
       console.log('- Set TREZA_BASE_URL environment variable to use a different API endpoint');
-      console.log('- All new APIs are production-ready and match the live treza-app backend!');
+      console.log('- All attestation APIs provide cryptographic proof of enclave integrity!');
+      console.log('- Use generated code snippets for seamless third-party integration!');
     })
     .catch(console.error);
 } 
