@@ -40,12 +40,13 @@ interface ComplianceProof {
 }
 
 export class ZKVerifyBridge {
-    private zkVerifyEndpoint: string;
-    private relayerApiKey: string;
+    private apiEndpoint: string; // Your Next.js API endpoint
     
-    constructor(zkVerifyEndpoint: string, relayerApiKey?: string) {
-        this.zkVerifyEndpoint = zkVerifyEndpoint;
-        this.relayerApiKey = relayerApiKey || "";
+    /**
+     * @param apiEndpoint The base URL of your Next.js API (e.g., "http://localhost:3000/api" or "https://yourdomain.com/api")
+     */
+    constructor(apiEndpoint: string) {
+        this.apiEndpoint = apiEndpoint;
     }
     
     /**
@@ -82,55 +83,288 @@ export class ZKVerifyBridge {
     }
     
     /**
-     * Submit proof to zkVerify for verification
+     * Submit proof to zkVerify for verification via Horizen Relayer
      * @param zkVerifyProof The zkVerify-compatible proof
-     * @returns Verification receipt from zkVerify
+     * @param userAddress Optional user address for tracking
+     * @param enableAggregation Whether to enable aggregation for smart contract verification
+     * @param chainId Target chain ID for aggregation (e.g., 11155111 for Sepolia)
+     * @returns Job ID and optimistic verification status
      */
-    async submitToZKVerify(zkVerifyProof: ZKVerifyProof): Promise<string> {
-        console.log("📤 Submitting proof to zkVerify...");
+    async submitToZKVerify(
+        zkVerifyProof: ZKVerifyProof,
+        userAddress?: string,
+        enableAggregation: boolean = false,
+        chainId?: number
+    ): Promise<{ jobId: string; optimisticVerify: string }> {
+        console.log("📤 Submitting proof to zkVerify via Relayer...");
+        if (enableAggregation) {
+            console.log("🔗 Aggregation enabled for smart contract verification");
+        }
         
         try {
-            // Use zkVerify relayer service for submission
-            const response = await fetch(`${this.zkVerifyEndpoint}/submit-proof`, {
+            const response = await fetch(`${this.apiEndpoint}/zkverify/submit-proof`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.relayerApiKey}`
                 },
                 body: JSON.stringify({
                     proof: zkVerifyProof.proof,
-                    publicInputs: zkVerifyProof.publicInputs,
-                    verificationKey: zkVerifyProof.verificationKey,
-                    proofSystem: "groth16" // Assuming Groth16 for now
+                    publicSignals: zkVerifyProof.publicInputs,
+                    vk: zkVerifyProof.verificationKey,
+                    proofType: "groth16", // Can be made configurable
+                    userAddress,
+                    // Include chainId only if aggregation is enabled
+                    ...(enableAggregation && chainId && { chainId })
                 })
             });
             
             if (!response.ok) {
-                throw new Error(`zkVerify submission failed: ${response.statusText}`);
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Submission failed: ${response.statusText}`);
             }
             
             const result = await response.json();
-            console.log("✅ Proof verified by zkVerify");
+            console.log(`✅ Proof submitted. JobId: ${result.jobId}`);
             
-            return result.verificationReceipt;
+            return {
+                jobId: result.jobId,
+                optimisticVerify: result.optimisticVerify
+            };
             
-        } catch (error) {
+        } catch (error: any) {
             console.error("❌ Error submitting to zkVerify:", error);
             throw new Error(`zkVerify submission failed: ${error.message}`);
         }
     }
     
     /**
-     * Process complete ZKPassport verification flow
+     * Poll job status until finalized or aggregated
+     * @param jobId The job ID to poll
+     * @param waitForAggregation Wait for aggregation instead of just finalization
+     * @param maxAttempts Maximum number of polling attempts (default: 60 for finalization, 120 for aggregation)
+     * @param intervalMs Polling interval in milliseconds (default: 5000)
+     * @returns Job status when finalized or aggregated
+     */
+    async waitForJobFinalization(
+        jobId: string,
+        waitForAggregation: boolean = false,
+        maxAttempts?: number,
+        intervalMs: number = 5000
+    ): Promise<any> {
+        // Aggregation takes longer (5-10 minutes), so increase default attempts
+        const defaultMaxAttempts = waitForAggregation ? 120 : 60;
+        const attempts = maxAttempts || defaultMaxAttempts;
+        
+        console.log(`⏳ Waiting for job ${jobId} to ${waitForAggregation ? 'aggregate' : 'finalize'}...`);
+        
+        let attemptCount = 0;
+        
+        while (attemptCount < attempts) {
+            try {
+                const response = await fetch(`${this.apiEndpoint}/zkverify/job-status/${jobId}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to get job status: ${response.statusText}`);
+                }
+                
+                const { jobStatus } = await response.json();
+                console.log(`Job status: ${jobStatus.status}`);
+                
+                // Check for terminal states based on what we're waiting for
+                if (waitForAggregation) {
+                    if (jobStatus.status === 'Aggregated' || jobStatus.status === 'AggregationPublished') {
+                        console.log(`✅ Job ${jobId} aggregated`);
+                        return jobStatus;
+                    }
+                } else {
+                    if (jobStatus.status === 'Finalized' || jobStatus.status === 'Aggregated') {
+                        console.log(`✅ Job ${jobId} ${jobStatus.status.toLowerCase()}`);
+                        return jobStatus;
+                    }
+                }
+                
+                if (jobStatus.status === 'Failed') {
+                    throw new Error(`Job ${jobId} failed verification`);
+                }
+                
+                // Wait before next poll
+                await new Promise(resolve => setTimeout(resolve, intervalMs));
+                attemptCount++;
+                
+            } catch (error: any) {
+                console.error(`❌ Error polling job status:`, error.message);
+                throw error;
+            }
+        }
+        
+        throw new Error(`Timeout: Job ${jobId} did not ${waitForAggregation ? 'aggregate' : 'finalize'} after ${attempts} attempts`);
+    }
+    
+    /**
+     * Get aggregation data for smart contract verification
+     * @param aggregationId The aggregation ID from zkVerify
+     * @returns Aggregation data including Merkle proof
+     */
+    async getAggregationData(aggregationId: number): Promise<any> {
+        console.log(`📦 Fetching aggregation data for: ${aggregationId}`);
+        
+        try {
+            const response = await fetch(
+                `${this.apiEndpoint}/zkverify/aggregation/${aggregationId}`
+            );
+            
+            if (!response.ok) {
+                throw new Error(`Failed to get aggregation data: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            console.log(`✅ Aggregation data retrieved`);
+            
+            return result.aggregation;
+            
+        } catch (error: any) {
+            console.error("❌ Error fetching aggregation data:", error.message);
+            throw error;
+        }
+    }
+    
+    /**
+     * Get aggregation data directly from job ID
+     * @param jobId The job ID to get aggregation data for
+     * @returns Aggregation data if job is aggregated
+     */
+    async getAggregationDataForJob(jobId: string): Promise<any> {
+        console.log(`📦 Fetching aggregation data for job: ${jobId}`);
+        
+        try {
+            const response = await fetch(
+                `${this.apiEndpoint}/zkverify/aggregation/job/${jobId}`
+            );
+            
+            if (!response.ok) {
+                throw new Error(`Failed to get aggregation data: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.message || 'Job not yet aggregated');
+            }
+            
+            console.log(`✅ Aggregation data retrieved for job`);
+            return result.aggregation;
+            
+        } catch (error: any) {
+            console.error("❌ Error fetching aggregation data:", error.message);
+            throw error;
+        }
+    }
+    
+    /**
+     * Register a verification key with zkVerify
+     * @param vk Verification key data
+     * @param proofType Type of proof (default: groth16)
+     * @returns VK hash for future proof submissions
+     */
+    async registerVerificationKey(
+        vk: any,
+        proofType: string = "groth16"
+    ): Promise<string> {
+        console.log(`🔑 Registering verification key for ${proofType}...`);
+        
+        try {
+            const response = await fetch(`${this.apiEndpoint}/zkverify/register-vk`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    vk,
+                    proofType,
+                    proofOptions: {
+                        library: "snarkjs",
+                        curve: "bn128"
+                    }
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'VK registration failed');
+            }
+            
+            const result = await response.json();
+            console.log(`✅ Verification key registered: ${result.vkHash}`);
+            
+            return result.vkHash;
+            
+        } catch (error: any) {
+            console.error("❌ Error registering VK:", error.message);
+            throw error;
+        }
+    }
+    
+    /**
+     * Submit attestation to oracle contract after zkVerify finalization
+     * @param proofHash Proof hash
+     * @param verified Whether proof was verified
+     * @param zkVerifyJobStatus Job status from zkVerify
+     * @param userAddress User's Ethereum address
+     * @returns Transaction hash of oracle submission
+     */
+    async submitAttestationToOracle(
+        proofHash: string,
+        verified: boolean,
+        zkVerifyJobStatus: any,
+        userAddress?: string
+    ): Promise<string> {
+        console.log("📝 Submitting attestation to oracle contract...");
+        
+        try {
+            const response = await fetch(`${this.apiEndpoint}/zkverify/submit-attestation`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    proofHash,
+                    verified,
+                    zkVerifyBlockHash: zkVerifyJobStatus.blockHash,
+                    zkVerifyTxHash: zkVerifyJobStatus.txHash,
+                    userAddress
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Attestation submission failed');
+            }
+            
+            const result = await response.json();
+            console.log(`✅ Attestation submitted: ${result.transactionHash}`);
+            
+            return result.transactionHash;
+            
+        } catch (error: any) {
+            console.error("❌ Error submitting attestation:", error.message);
+            throw error;
+        }
+    }
+    
+    /**
+     * Process complete ZKPassport verification flow with zkVerify (Oracle-based)
      * @param zkPassportProof The proof from ZKPassport
      * @param userAddress The Ethereum address of the user
+     * @param submitToOracle Whether to submit attestation to oracle contract (default: true)
      * @returns Complete compliance proof
      */
     async processComplianceVerification(
         zkPassportProof: ZKPassportProof,
-        userAddress: string
-    ): Promise<ComplianceProof> {
+        userAddress: string,
+        submitToOracle: boolean = true
+    ): Promise<ComplianceProof & { jobId?: string; txHash?: string }> {
         console.log("🚀 Processing compliance verification for:", userAddress);
+        console.log("   Mode: Oracle-based (faster, requires trust in oracle)");
         
         try {
             // Step 1: Validate ZKPassport proof
@@ -139,31 +373,146 @@ export class ZKVerifyBridge {
             }
             
             // Step 2: Convert to zkVerify format
+            console.log("🔄 Converting proof to zkVerify format...");
             const zkVerifyProof = await this.convertToZKVerifyFormat(zkPassportProof);
             
-            // Step 3: Submit to zkVerify
-            const verificationReceipt = await this.submitToZKVerify(zkVerifyProof);
+            // Step 3: Submit to zkVerify via Relayer (no aggregation)
+            console.log("📤 Submitting to zkVerify...");
+            const { jobId, optimisticVerify } = await this.submitToZKVerify(
+                zkVerifyProof,
+                userAddress,
+                false // Don't enable aggregation for oracle mode
+            );
             
-            // Step 4: Generate compliance proof
-            const complianceProof: ComplianceProof = {
+            if (optimisticVerify !== 'success') {
+                throw new Error("Optimistic verification failed");
+            }
+            
+            // Step 4: Wait for finalization
+            console.log("⏳ Waiting for zkVerify finalization...");
+            const jobStatus = await this.waitForJobFinalization(jobId, false);
+            
+            // Step 5: Generate proof hash
+            const proofHash = ethers.utils.keccak256(
+                ethers.utils.toUtf8Bytes(zkPassportProof.proof + userAddress)
+            );
+            
+            // Step 6: Submit to oracle contract (if enabled)
+            let oracleTxHash: string | undefined;
+            if (submitToOracle && jobStatus.blockHash) {
+                console.log("📝 Submitting attestation to oracle...");
+                oracleTxHash = await this.submitAttestationToOracle(
+                    proofHash,
+                    true,
+                    jobStatus,
+                    userAddress
+                );
+            }
+            
+            // Step 7: Generate compliance proof
+            const complianceProof: ComplianceProof & { jobId?: string; txHash?: string } = {
                 userAddress: userAddress,
-                proofHash: ethers.utils.keccak256(
-                    ethers.utils.toUtf8Bytes(zkPassportProof.proof + userAddress)
-                ),
+                proofHash,
                 verificationLevel: this.determineVerificationLevel(zkPassportProof),
                 attributes: {
                     ageVerified: zkPassportProof.result.age !== undefined,
                     nationalityVerified: zkPassportProof.result.nationality !== undefined,
                     uniquenessVerified: zkPassportProof.uniqueIdentifier !== undefined
                 },
-                zkVerifyReceipt: verificationReceipt
+                zkVerifyReceipt: jobStatus.txHash,
+                jobId,
+                txHash: oracleTxHash
             };
             
             console.log("✅ Compliance verification completed successfully");
+            console.log(`   zkVerify Tx: ${jobStatus.txHash}`);
+            if (oracleTxHash) {
+                console.log(`   Oracle Tx: ${oracleTxHash}`);
+            }
+            
             return complianceProof;
             
-        } catch (error) {
+        } catch (error: any) {
             console.error("❌ Error processing compliance verification:", error);
+            throw error;
+        }
+    }
+    
+    /**
+     * Process compliance verification with smart contract aggregation (Trustless)
+     * @param zkPassportProof The proof from ZKPassport
+     * @param userAddress The Ethereum address of the user
+     * @param chainId Target chain ID for aggregation (e.g., 11155111 for Sepolia)
+     * @returns Compliance proof with aggregation data for smart contract verification
+     */
+    async processComplianceWithAggregation(
+        zkPassportProof: ZKPassportProof,
+        userAddress: string,
+        chainId: number = 11155111
+    ): Promise<ComplianceProof & { jobId?: string; aggregationData?: any }> {
+        console.log("🚀 Processing compliance verification for:", userAddress);
+        console.log("   Mode: Smart Contract (trustless, takes 5-10 min for aggregation)");
+        
+        try {
+            // Step 1: Validate ZKPassport proof
+            if (!zkPassportProof.verified) {
+                throw new Error("ZKPassport proof is not verified");
+            }
+            
+            // Step 2: Convert to zkVerify format
+            console.log("🔄 Converting proof to zkVerify format...");
+            const zkVerifyProof = await this.convertToZKVerifyFormat(zkPassportProof);
+            
+            // Step 3: Submit to zkVerify with aggregation enabled
+            console.log("📤 Submitting to zkVerify with aggregation...");
+            const { jobId, optimisticVerify } = await this.submitToZKVerify(
+                zkVerifyProof,
+                userAddress,
+                true, // Enable aggregation
+                chainId
+            );
+            
+            if (optimisticVerify !== 'success') {
+                throw new Error("Optimistic verification failed");
+            }
+            
+            // Step 4: Wait for aggregation (takes longer)
+            console.log("⏳ Waiting for zkVerify aggregation (5-10 minutes)...");
+            const jobStatus = await this.waitForJobFinalization(jobId, true); // Wait for aggregation
+            
+            // Step 5: Get aggregation data for smart contract verification
+            console.log("📦 Fetching aggregation data...");
+            const aggregationData = await this.getAggregationDataForJob(jobId);
+            
+            // Step 6: Generate proof hash
+            const proofHash = ethers.utils.keccak256(
+                ethers.utils.toUtf8Bytes(zkPassportProof.proof + userAddress)
+            );
+            
+            // Step 7: Generate compliance proof with aggregation data
+            const complianceProof: ComplianceProof & { jobId?: string; aggregationData?: any } = {
+                userAddress: userAddress,
+                proofHash,
+                verificationLevel: this.determineVerificationLevel(zkPassportProof),
+                attributes: {
+                    ageVerified: zkPassportProof.result.age !== undefined,
+                    nationalityVerified: zkPassportProof.result.nationality !== undefined,
+                    uniquenessVerified: zkPassportProof.uniqueIdentifier !== undefined
+                },
+                zkVerifyReceipt: jobStatus.txHash,
+                jobId,
+                aggregationData // Include full aggregation data for smart contract verification
+            };
+            
+            console.log("✅ Compliance verification with aggregation completed");
+            console.log(`   zkVerify Tx: ${jobStatus.txHash}`);
+            console.log(`   Aggregation ID: ${aggregationData.aggregationId}`);
+            console.log("   📝 Use aggregationData to verify on-chain via smart contract");
+            
+            return complianceProof;
+            
+        } catch (error: any) {
+            console.error("❌ Error processing compliance with aggregation:", error);
             throw error;
         }
     }
@@ -288,7 +637,9 @@ export class ZKVerifyBridge {
 
 // Example usage
 export async function exampleUsage() {
-    const bridge = new ZKVerifyBridge("https://api.zkverify.io", "your-api-key");
+    // Initialize bridge with your Next.js API endpoint
+    const bridge = new ZKVerifyBridge("http://localhost:3000/api");
+    // Or in production: const bridge = new ZKVerifyBridge("https://yourdomain.com/api");
     
     // Simulate ZKPassport proof
     const zkPassportProof: ZKPassportProof = {
@@ -304,12 +655,17 @@ export async function exampleUsage() {
     };
     
     try {
+        // Process complete verification flow
         const complianceProof = await bridge.processComplianceVerification(
             zkPassportProof,
-            "0x1234567890123456789012345678901234567890"
+            "0x1234567890123456789012345678901234567890",
+            true // Submit to oracle contract
         );
         
         console.log("🎉 Compliance proof generated:", complianceProof);
+        console.log("   zkVerify Job ID:", complianceProof.jobId);
+        console.log("   zkVerify Receipt:", complianceProof.zkVerifyReceipt);
+        console.log("   Oracle Tx Hash:", complianceProof.txHash);
         
     } catch (error) {
         console.error("💥 Error:", error);

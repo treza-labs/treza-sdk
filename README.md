@@ -8,9 +8,11 @@ Privacy-first DeFi development tools with zero-knowledge compliance integration.
 
 ## 🚀 Features
 
-- **🛡️ Production zkVerify Integration** - Oracle and Attestation systems for enterprise-grade verification
-- **🤖 Smart Verification Routing** - Automatic selection between Oracle (fast) and Attestation (secure) modes
-- **🏛️ Professional Attestation** - KYC'd institutional attesters with staking and slashing mechanisms
+- **🛡️ Production zkVerify Integration** - Complete Horizen Relayer API integration for proof verification
+- **🔗 Dual Verification Modes** - Oracle-based (fast) AND Smart Contract (trustless) verification  
+- **🤖 Smart Verification Routing** - Automatic selection between Oracle and Attestation systems
+- **🏛️ Professional Attestation** - KYC'd institutional attesters with staking and slashing
+- **📦 Aggregation Support** - Batch proofs for cost-efficient trustless verification
 - **⚡ Easy Integration** - Simple APIs for complex privacy-preserving operations
 - **🔧 Developer Friendly** - TypeScript support with comprehensive documentation
 - **⚛️ React Components** - Pre-built UI components for seamless integration
@@ -139,7 +141,30 @@ function App() {
 
 ## 🏭 zkVerify Production Integration
 
-The TREZA SDK now includes production-ready zkVerify integration with Oracle and Attestation systems:
+The TREZA SDK includes **dual-mode** zkVerify integration via Horizen Labs Relayer API:
+
+### 🌟 **NEW: Smart Contract Verification (Trustless)**
+- **Zero Trust Required**: Direct cryptographic verification on-chain
+- **Cost Efficient**: 66% cheaper at scale via proof aggregation
+- **Censorship Resistant**: No intermediary oracle nodes
+- **Tradeoff**: Requires 5-10 minutes for aggregation window
+
+### 🚀 **Oracle-Based Verification (Fast)**
+- **Instant Verification**: 30-60 seconds end-to-end
+- **High Volume**: Optimized for frequent small transactions
+- **Multi-Oracle Consensus**: Redundancy and security
+- **Tradeoff**: Requires trust in oracle network
+
+### 🎯 **Hybrid Approach (Recommended)**
+Use both based on transaction value and risk profile:
+- High-value (>$10k): Smart contract verification (trustless)
+- Low-value (<$10k): Oracle verification (fast)
+
+---
+
+### Previous Systems (Still Supported):
+
+
 
 ### 🤖 Oracle System
 - **Fast Verification**: Automated verification for high-volume transactions
@@ -161,12 +186,43 @@ The TREZA SDK now includes production-ready zkVerify integration with Oracle and
 
 ### 📊 Verification Modes
 
-| Mode | Description | Use Case | Speed | Security |
-|------|-------------|----------|-------|----------|
-| **0 - Fallback** | Basic verification without zkVerify | Development/Testing | ⚡ Fast | 🔒 Basic |
-| **1 - Oracle** | Automated oracle verification | High-volume DeFi | ⚡ Fast | 🔒🔒 High |
-| **2 - Attestation** | Professional attester review | High-value transactions | 🐌 Slower | 🔒🔒🔒 Maximum |
-| **3 - Hybrid** | Smart routing based on value/risk | Production systems | ⚡🐌 Variable | 🔒🔒🔒 Adaptive |
+| Mode | Description | Use Case | Speed | Trust | Cost |
+|------|-------------|----------|-------|-------|------|
+| **Smart Contract** | Trustless aggregation verification | High-value (>$10k) | 🐌 5-10 min | ✅ Zero trust | 💰 ~$2.50 |
+| **Oracle** | Automated oracle verification | High-volume DeFi | ⚡ 30-60s | ⚠️ Oracle trust | 💰 ~$7.50 |
+| **Attestation** | Professional attester review | Special cases | 🐌 Slower | ⚠️ Attester trust | 💰 Variable |
+| **Hybrid** | Smart routing (Oracle + Smart Contract) | Production | ⚡🐌 Mixed | ✅ Adaptive | 💰 Optimized |
+
+### 🆕 zkVerify Bridge API
+
+```typescript
+import { ZKVerifyBridge } from '@treza/sdk';
+
+// Initialize bridge
+const bridge = new ZKVerifyBridge('https://yourdomain.com/api');
+
+// Method 1: Oracle verification (fast)
+const result = await bridge.processComplianceVerification(
+  zkPassportProof,
+  userAddress,
+  true  // Submit to oracle
+);
+
+// Method 2: Smart contract verification (trustless)
+const result = await bridge.processComplianceWithAggregation(
+  zkPassportProof,
+  userAddress,
+  11155111  // Chain ID for aggregation
+);
+```
+
+**Key Methods:**
+- `processComplianceVerification()` - Oracle-based (30-60s)
+- `processComplianceWithAggregation()` - Smart contract (5-10min, trustless)
+- `submitToZKVerify()` - Low-level proof submission
+- `waitForJobFinalization()` - Poll verification status
+- `getAggregationData()` - Get Merkle proofs for on-chain verification
+- `registerVerificationKey()` - Register circuit VK with zkVerify
 
 ## ⚛️ React Components & Hooks
 
