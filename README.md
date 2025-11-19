@@ -6,27 +6,27 @@
 
 Privacy-first DeFi development tools with zero-knowledge compliance integration.
 
-## 🚀 Features
+## Features
 
-- **🛡️ Production zkVerify Integration** - Complete Horizen Relayer API integration for proof verification
-- **🔗 Dual Verification Modes** - Oracle-based (fast) AND Smart Contract (trustless) verification  
-- **🤖 Smart Verification Routing** - Automatic selection between Oracle and Attestation systems
-- **🏛️ Professional Attestation** - KYC'd institutional attesters with staking and slashing
-- **📦 Aggregation Support** - Batch proofs for cost-efficient trustless verification
-- **⚡ Easy Integration** - Simple APIs for complex privacy-preserving operations
-- **🔧 Developer Friendly** - TypeScript support with comprehensive documentation
-- **⚛️ React Components** - Pre-built UI components for seamless integration
-- **🌐 Multi-Chain Support** - Works across Ethereum and compatible networks
-- **🔐 Secure by Design** - No personal data storage, cryptographic proofs only
+- **Production zkVerify Integration** - Complete Horizen Relayer API integration for proof verification
+- **Dual Verification Modes** - Oracle-based (fast) AND Smart Contract (trustless) verification  
+- **Smart Verification Routing** - Automatic selection between Oracle and Attestation systems
+- **Professional Attestation** - KYC'd institutional attesters with staking and slashing
+- **Aggregation Support** - Batch proofs for cost-efficient trustless verification
+- **Easy Integration** - Simple APIs for complex privacy-preserving operations
+- **Developer Friendly** - TypeScript support with comprehensive documentation
+- **React Components** - Pre-built UI components for seamless integration
+- **Multi-Chain Support** - Works across Ethereum and compatible networks
+- **Secure by Design** - No personal data storage, cryptographic proofs only
 
-## 📦 Packages
+## Packages
 
 | Package | Description | Version |
 |---------|-------------|---------|
 | [`@treza/sdk`](./packages/core) | Core SDK functionality | ![npm](https://img.shields.io/npm/v/@treza/sdk) |
 | [`@treza/react`](./packages/react) | React components and hooks | ![npm](https://img.shields.io/npm/v/@treza/react) |
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -139,23 +139,23 @@ function App() {
 }
 ```
 
-## 🏭 zkVerify Production Integration
+## zkVerify Production Integration
 
 The TREZA SDK includes **dual-mode** zkVerify integration via Horizen Labs Relayer API:
 
-### 🌟 **NEW: Smart Contract Verification (Trustless)**
+### NEW: Smart Contract Verification (Trustless)
 - **Zero Trust Required**: Direct cryptographic verification on-chain
 - **Cost Efficient**: 66% cheaper at scale via proof aggregation
 - **Censorship Resistant**: No intermediary oracle nodes
 - **Tradeoff**: Requires 5-10 minutes for aggregation window
 
-### 🚀 **Oracle-Based Verification (Fast)**
+### Oracle-Based Verification (Fast)
 - **Instant Verification**: 30-60 seconds end-to-end
 - **High Volume**: Optimized for frequent small transactions
 - **Multi-Oracle Consensus**: Redundancy and security
 - **Tradeoff**: Requires trust in oracle network
 
-### 🎯 **Hybrid Approach (Recommended)**
+### Hybrid Approach (Recommended)
 Use both based on transaction value and risk profile:
 - High-value (>$10k): Smart contract verification (trustless)
 - Low-value (<$10k): Oracle verification (fast)
@@ -166,34 +166,34 @@ Use both based on transaction value and risk profile:
 
 
 
-### 🤖 Oracle System
+### Oracle System
 - **Fast Verification**: Automated verification for high-volume transactions
 - **Multi-Oracle Consensus**: Multiple authorized oracles for redundancy
 - **Cryptographic Proofs**: Signature verification of zkVerify results
 - **Gas Optimized**: Efficient on-chain storage and retrieval
 
-### 👨‍💼 Attestation System  
+### Attestation System  
 - **Professional Review**: KYC'd institutional and individual attesters
 - **Tier-Based Access**: Bronze, Silver, Gold, Platinum attester levels
 - **Economic Security**: Staking mechanism with slashing for incorrect attestations
 - **Rich Metadata**: Detailed context for attestation decisions
 
-### 🔄 Hybrid Verification
+### Hybrid Verification
 - **Smart Routing**: Automatic selection between Oracle and Attestation
 - **Value-Based Logic**: High-value transactions → Attestation, High-volume → Oracle
 - **Fallback Modes**: Graceful degradation when systems are unavailable
 - **Runtime Configuration**: Admin controls for verification strategies
 
-### 📊 Verification Modes
+### Verification Modes
 
 | Mode | Description | Use Case | Speed | Trust | Cost |
 |------|-------------|----------|-------|-------|------|
-| **Smart Contract** | Trustless aggregation verification | High-value (>$10k) | 🐌 5-10 min | ✅ Zero trust | 💰 ~$2.50 |
-| **Oracle** | Automated oracle verification | High-volume DeFi | ⚡ 30-60s | ⚠️ Oracle trust | 💰 ~$7.50 |
-| **Attestation** | Professional attester review | Special cases | 🐌 Slower | ⚠️ Attester trust | 💰 Variable |
-| **Hybrid** | Smart routing (Oracle + Smart Contract) | Production | ⚡🐌 Mixed | ✅ Adaptive | 💰 Optimized |
+| **Smart Contract** | Trustless aggregation verification | High-value (>$10k) | 5-10 min | Zero trust | ~$2.50 |
+| **Oracle** | Automated oracle verification | High-volume DeFi | 30-60s | Oracle trust | ~$7.50 |
+| **Attestation** | Professional attester review | Special cases | Slower | Attester trust | Variable |
+| **Hybrid** | Smart routing (Oracle + Smart Contract) | Production | Mixed | Adaptive | Optimized |
 
-### 🆕 zkVerify Bridge API
+### zkVerify Bridge API
 
 ```typescript
 import { ZKVerifyBridge } from '@treza/sdk';
@@ -224,7 +224,7 @@ const result = await bridge.processComplianceWithAggregation(
 - `getAggregationData()` - Get Merkle proofs for on-chain verification
 - `registerVerificationKey()` - Register circuit VK with zkVerify
 
-## ⚛️ React Components & Hooks
+## React Components & Hooks
 
 The `@treza/react` package provides comprehensive React integration for ZKPassport compliance with full zkVerify support.
 
@@ -452,7 +452,7 @@ The React components seamlessly integrate with ZKPassport and zkVerify for produ
 7. **On-chain verification** → Oracle consensus or professional attester review
 8. **Compliance status updated** → Components automatically reflect new status with verification method details
 
-## 🏗️ Architecture
+## Architecture
 
 The TREZA SDK provides a complete privacy-preserving compliance solution with production zkVerify integration:
 
@@ -495,7 +495,7 @@ The TREZA SDK provides a complete privacy-preserving compliance solution with pr
 └─────────────────┘
 ```
 
-## 🔧 Development
+## Development
 
 ### Prerequisites
 
@@ -550,7 +550,7 @@ examples/                   # Usage examples
 docs/                       # Documentation
 ```
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
@@ -565,18 +565,18 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 7. Push to the branch: `git push origin feature/amazing-feature`
 8. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 Links
+## Links
 
 - **Website**: [trezalabs.com](https://trezalabs.com)
 - **Documentation**: [docs.trezalabs.com](https://docs.trezalabs.com)
 - **Smart Contracts**: [treza-contracts](https://github.com/treza-labs/treza-contracts)
 - **Twitter**: [@trezalabs](https://twitter.com/trezalabs)
 
-## 🆘 Support
+## Support
 
 - **Documentation**: [docs.trezalabs.com](https://docs.trezalabs.com)
 - **GitHub Issues**: [Report bugs](https://github.com/treza-labs/treza-sdk/issues)
