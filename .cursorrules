@@ -1,0 +1,42 @@
+# TREZA SDK Cursor Configuration
+
+Inherits from root workspace rules at ../.cursorrules
+
+## Package-Specific Information
+- Package: @treza/sdk and @treza/react
+- Current Version: 0.1.1
+- Build: npm run build
+- Test: npm test
+- Publish: npm publish --otp=CODE (requires 2FA)
+
+## Key Files
+- packages/core/src/compliance/zkverify-bridge.ts - Main zkVerify integration
+- packages/react/src/components/ - React components
+- packages/react/src/hooks/ - React hooks
+- README.md - Main documentation
+
+## SDK Architecture
+- Monorepo structure with npm workspaces
+- Core SDK: Zero-dependency compliance SDK
+- React package: UI components and hooks
+- Build: Rollup for both CJS and ESM outputs
+
+## Publishing Checklist
+1. Bump version in both packages/*/package.json
+2. Update @treza/react dependency to match @treza/sdk version
+3. Test build: npm run build
+4. Commit version bump
+5. Push to GitHub
+6. Publish core: cd packages/core && npm publish --otp=CODE
+7. Publish react: cd packages/react && npm publish --otp=CODE
+
+## Common Issues
+- ethers.js v6: No utils namespace (use ethers.keccak256 directly)
+- TypeScript strict: Use error type guards for catch blocks
+- Build errors: May need newer Node version (use nvm use 18)
+
+## Testing Strategy
+- Unit tests for core functionality
+- Integration tests with mock zkVerify
+- React component tests with @testing-library
+
