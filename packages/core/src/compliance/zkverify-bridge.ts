@@ -393,8 +393,8 @@ export class ZKVerifyBridge {
             const jobStatus = await this.waitForJobFinalization(jobId, false);
             
             // Step 5: Generate proof hash
-            const proofHash = ethers.utils.keccak256(
-                ethers.utils.toUtf8Bytes(zkPassportProof.proof + userAddress)
+            const proofHash = ethers.keccak256(
+                ethers.toUtf8Bytes(zkPassportProof.proof + userAddress)
             );
             
             // Step 6: Submit to oracle contract (if enabled)
@@ -485,8 +485,8 @@ export class ZKVerifyBridge {
             const aggregationData = await this.getAggregationDataForJob(jobId);
             
             // Step 6: Generate proof hash
-            const proofHash = ethers.utils.keccak256(
-                ethers.utils.toUtf8Bytes(zkPassportProof.proof + userAddress)
+            const proofHash = ethers.keccak256(
+                ethers.toUtf8Bytes(zkPassportProof.proof + userAddress)
             );
             
             // Step 7: Generate compliance proof with aggregation data
@@ -567,16 +567,16 @@ export class ZKVerifyBridge {
         
         // Add nationality hash as public input
         if (proof.result.nationality) {
-            const nationalityHash = ethers.utils.keccak256(
-                ethers.utils.toUtf8Bytes(proof.result.nationality)
+            const nationalityHash = ethers.keccak256(
+                ethers.toUtf8Bytes(proof.result.nationality)
             );
             inputs.push(nationalityHash);
         }
         
         // Add uniqueness identifier hash
         if (proof.uniqueIdentifier) {
-            const uniquenessHash = ethers.utils.keccak256(
-                ethers.utils.toUtf8Bytes(proof.uniqueIdentifier)
+            const uniquenessHash = ethers.keccak256(
+                ethers.toUtf8Bytes(proof.uniqueIdentifier)
             );
             inputs.push(uniquenessHash);
         }
@@ -614,7 +614,7 @@ export class ZKVerifyBridge {
         // For now, we'll generate a placeholder based on the proof type
         
         const proofType = "zkpassport_identity_v1";
-        return ethers.utils.keccak256(ethers.utils.toUtf8Bytes(proofType));
+        return ethers.keccak256(ethers.toUtf8Bytes(proofType));
     }
     
     /**
