@@ -78,7 +78,8 @@ export class ZKVerifyBridge {
             
         } catch (error) {
             console.error("❌ Error converting proof format:", error);
-            throw new Error(`Proof conversion failed: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Proof conversion failed: ${message}`);
         }
     }
     
