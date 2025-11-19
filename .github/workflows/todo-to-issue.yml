@@ -1,0 +1,114 @@
+name: TODO to GitHub Issue
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - '**.ts'
+      - '**.tsx'
+      - '**.sol'
+      - '**.js'
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:  # Manual trigger
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  scan-todos:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Get full history for comparison
+      
+      - name: TODO to Issue
+        uses: alstr/todo-to-issue-action@v4
+        with:
+          REPO: ${{ github.repository }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LABEL: "technical-debt,auto-generated"
+          AUTO_ASSIGN: true
+          CLOSE_ON_REMOVAL: true
+          AUTO_P: true  # Auto-detect priority from comments
+          ESCAPE: "|"   # Character to escape TODO detection
+      
+      - name: Report TODO Summary
+        if: always()
+        run: |
+          echo "## TODO Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Count TODOs by type
+          todo_count=$(git grep -c "TODO" -- "*.ts" "*.sol" "*.js" 2>/dev/null | awk -F: '{sum+=$2} END {print sum}' || echo "0")
+          fixme_count=$(git grep -c "FIXME" -- "*.ts" "*.sol" "*.js" 2>/dev/null | awk -F: '{sum+=$2} END {print sum}' || echo "0")
+          hack_count=$(git grep -c "HACK" -- "*.ts" "*.sol" "*.js" 2>/dev/null | awk -F: '{sum+=$2} END {print sum}' || echo "0")
+          
+          echo "- **TODOs**: $todo_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **FIXMEs**: $fixme_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **HACKs**: $hack_count" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # List TODOs without issue references
+          echo "### TODOs without issue references:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          git grep -n "TODO" -- "*.ts" "*.sol" "*.js" | grep -v "TODO(issue:" | head -10 || echo "None found!"
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+  
+  check-placeholders:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Check for critical placeholders
+        id: check
+        run: |
+          echo "## Critical Placeholders" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for placeholder addresses
+          placeholders=$(git grep -n "0x\.\.\.\|0x0000000000000000000000000000000000000000" -- "*.ts" "*.sol" "*.js" | grep -v "test\|example" | head -20 || echo "")
+          
+          if [ -z "$placeholders" ]; then
+            echo "✅ No critical placeholders found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Found placeholder addresses:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "$placeholders" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            
+            # Warn but don't fail
+            echo "::warning::Found placeholder addresses in code"
+          fi
+          
+          # Check for simulation comments
+          simulations=$(git grep -n "simulate\|placeholder\|For now" -i -- "*.ts" "*.sol" | grep -v "test\|example\|docs\|README" | head -20 || echo "")
+          
+          if [ -n "$simulations" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Simulated/Placeholder Code:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "$simulations" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && steps.check.outputs.found == 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ This PR contains placeholder code or TODOs. Please ensure they are tracked in issues.'
+            })
+
