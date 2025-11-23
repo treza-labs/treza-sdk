@@ -9,12 +9,36 @@ Examples for using the Treza KYC SDK to submit and verify zero-knowledge proofs.
 npm install
 ```
 
-2. Set environment variables:
+2. Configure environment variables:
+
+**Option A: Using .env file (Recommended)**
 ```bash
-export TREZA_API_KEY="your-api-key"
-export RPC_URL="https://eth-sepolia.g.alchemy.com/v2/YOUR-API-KEY"
-export PRIVATE_KEY="your-private-key"  # Only for submission
+# Copy example file
+cp ../../.env.example .env
+
+# Edit .env with your values
+nano .env
 ```
+
+**Option B: Export variables**
+```bash
+export TREZA_API_URL="http://localhost:3000/api"
+export TREZA_API_KEY="your-api-key"
+export SEPOLIA_RPC_URL="https://rpc.sepolia.org"
+export SEPOLIA_KYC_VERIFIER_ADDRESS="0xB1D98F688Fac29471D91234d9f8EbB37238Df6FA"
+export PRIVATE_KEY="0x..."  # Only for proof submission
+```
+
+**Required Variables:**
+- `TREZA_API_URL` - API endpoint (local dev or production)
+- `SEPOLIA_RPC_URL` - Ethereum RPC endpoint
+- `SEPOLIA_KYC_VERIFIER_ADDRESS` - KYCVerifier contract address
+
+**Optional Variables:**
+- `TREZA_API_KEY` - API authentication key
+- `PRIVATE_KEY` - Private key for blockchain write operations
+
+See [`../../.env.example`](../../.env.example) for all available options.
 
 ## Examples
 
@@ -38,6 +62,14 @@ Check user's KYC status on blockchain:
 
 ```bash
 ts-node examples/kyc/verify-proof.ts <proofId> <userAddress>
+```
+
+### Check Adult Status
+
+Quick check if a user is an adult (18+):
+
+```bash
+npx tsx examples/kyc/check-adult.ts <proofId>
 ```
 
 ## Usage in Your Application
@@ -87,6 +119,49 @@ const proof = await client.getProofFromChain(proofId);
 console.log('Public Claims:', proof.publicInputs);
 ```
 
+### Convenience Methods (Quick Checks)
+
+**Check if user is an adult:**
+```typescript
+const client = new TrezaKYCClient({ apiUrl: 'https://api.treza.io' });
+
+// Via API (fast)
+const isAdult = await client.isAdult(proofId);
+console.log('Is Adult:', isAdult); // true or false
+
+// Via blockchain (trustless)
+const isAdultOnChain = await client.isAdult(proofId, true);
+```
+
+**Get all claims at once:**
+```typescript
+const claims = await client.getClaims(proofId);
+console.log(claims);
+// {
+//   country: 'US',
+//   isAdult: true,
+//   documentValid: true,
+//   documentType: 'passport'
+// }
+```
+
+**Verify requirements:**
+```typescript
+const result = await client.meetsRequirements(proofId, {
+  mustBeAdult: true,
+  allowedCountries: ['US', 'CA', 'GB'],
+  mustHaveValidDocument: true,
+  allowedDocumentTypes: ['passport', 'drivers_license']
+});
+
+if (result.meets) {
+  console.log('✅ User meets all requirements!');
+  console.log('Claims:', result.claims);
+} else {
+  console.log('❌ Requirements not met:', result.reason);
+}
+```
+
 ### React Hook
 
 ```typescript
@@ -129,6 +204,7 @@ See [TrezaKYCClient.ts](../../src/kyc/TrezaKYCClient.ts) for full API documentat
 
 ### Key Methods
 
+#### Core Methods
 - `submitProof()` - Submit proof to API
 - `verifyProof()` - Verify proof via API
 - `getProof()` - Get proof details
@@ -137,6 +213,14 @@ See [TrezaKYCClient.ts](../../src/kyc/TrezaKYCClient.ts) for full API documentat
 - `hasValidKYC()` - Check if user has valid KYC
 - `getProofFromChain()` - Get proof from blockchain
 - `getUserProofId()` - Get user's latest proof ID
+
+#### Convenience Methods (New!)
+- `isAdult(proofId, useBlockchain?)` - Check if user is 18+
+- `getCountry(proofId, useBlockchain?)` - Get user's country
+- `hasValidDocument(proofId, useBlockchain?)` - Check if document is valid
+- `getDocumentType(proofId, useBlockchain?)` - Get document type
+- `getClaims(proofId, useBlockchain?)` - Get all public claims
+- `meetsRequirements(proofId, requirements, useBlockchain?)` - Verify requirements
 
 ## Testing
 

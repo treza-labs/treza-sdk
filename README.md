@@ -38,7 +38,80 @@ npm install @treza/sdk ethers
 npm install @treza/react @treza/sdk ethers react react-dom
 ```
 
-### Basic Usage
+### Environment Setup
+
+Create a `.env` file in your project root:
+
+```bash
+# Copy the example file
+cp node_modules/@treza/sdk/.env.example .env
+```
+
+Or manually create `.env` with these variables:
+
+```bash
+# API Configuration
+TREZA_API_URL=https://api.treza.io/api
+# For local development: http://localhost:3000/api
+TREZA_API_KEY=your-api-key-here
+
+# Blockchain Configuration
+SEPOLIA_RPC_URL=https://rpc.sepolia.org
+SEPOLIA_KYC_VERIFIER_ADDRESS=0xB1D98F688Fac29471D91234d9f8EbB37238Df6FA
+
+# For write operations (proof submission)
+PRIVATE_KEY=0x...your-private-key
+```
+
+See [`.env.example`](./.env.example) for all available configuration options.
+
+### KYC SDK Usage
+
+```typescript
+import { TrezaKYCClient } from '@treza/sdk/kyc';
+
+// Initialize client
+const client = new TrezaKYCClient({
+  apiUrl: process.env.TREZA_API_URL,
+  apiKey: process.env.TREZA_API_KEY,
+  blockchain: {
+    rpcUrl: process.env.SEPOLIA_RPC_URL,
+    contractAddress: process.env.SEPOLIA_KYC_VERIFIER_ADDRESS,
+    privateKey: process.env.PRIVATE_KEY, // Optional, only for write operations
+  },
+});
+
+// Check if user is an adult
+const isAdult = await client.isAdult(proofId);
+console.log('User is 18+:', isAdult);
+
+// Get all claims
+const claims = await client.getClaims(proofId);
+console.log(claims);
+// {
+//   country: 'US',
+//   isAdult: true,
+//   documentValid: true,
+//   documentType: 'passport'
+// }
+
+// Verify requirements
+const result = await client.meetsRequirements(proofId, {
+  mustBeAdult: true,
+  allowedCountries: ['US', 'CA', 'GB'],
+  mustHaveValidDocument: true,
+});
+
+if (result.meets) {
+  console.log('✅ User meets all requirements!');
+} else {
+  console.log('❌ Requirements not met:', result.reason);
+}
+```
+
+See [Quick Reference](./QUICK_REFERENCE.md) for more KYC SDK examples.
+
+### Compliance SDK Usage
 
 ```typescript
 import { TrezaComplianceSDK, TrezaComplianceHelper } from '@treza/sdk';

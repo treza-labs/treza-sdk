@@ -172,7 +172,7 @@ export class TrezaKYCClient {
       }
       
       // Connect contract to signer
-      const contractWithSigner = this.contract.connect(signer);
+      const contractWithSigner = this.contract.connect(signer) as ethers.Contract;
       
       // Convert commitment to bytes32
       const commitmentBytes32 = params.commitment.startsWith('0x')
@@ -220,7 +220,7 @@ export class TrezaKYCClient {
       }
       
       // Connect contract to signer
-      const contractWithSigner = this.contract.connect(signer);
+      const contractWithSigner = this.contract.connect(signer) as ethers.Contract;
       
       // Verify proof
       const tx = await contractWithSigner.verifyProof(params.proofId);
@@ -313,6 +313,163 @@ export class TrezaKYCClient {
       return await this.contract.doesCommitmentExist(commitmentBytes32);
     } catch (error: any) {
       throw new Error(`Failed to check commitment: ${error.message}`);
+    }
+  }
+  
+  // ==================== Claim Verification Methods ====================
+  
+  /**
+   * Check if user with proofId is an adult (18+)
+   */
+  async isAdult(proofId: string, useBlockchain: boolean = false): Promise<boolean> {
+    try {
+      if (useBlockchain) {
+        const proof = await this.getProofFromChain(proofId);
+        return proof.publicInputs.includes('isAdult:true');
+      } else {
+        const verification = await this.verifyProof(proofId);
+        return verification.publicInputs.includes('isAdult:true');
+      }
+    } catch (error: any) {
+      throw new Error(`Failed to check adult status: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Get user's country from proof
+   */
+  async getCountry(proofId: string, useBlockchain: boolean = false): Promise<string | null> {
+    try {
+      const publicInputs = useBlockchain
+        ? (await this.getProofFromChain(proofId)).publicInputs
+        : (await this.verifyProof(proofId)).publicInputs;
+      
+      const countryInput = publicInputs.find(input => input.startsWith('country:'));
+      return countryInput ? countryInput.split(':')[1] : null;
+    } catch (error: any) {
+      throw new Error(`Failed to get country: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Check if document is valid (not expired)
+   */
+  async hasValidDocument(proofId: string, useBlockchain: boolean = false): Promise<boolean> {
+    try {
+      const publicInputs = useBlockchain
+        ? (await this.getProofFromChain(proofId)).publicInputs
+        : (await this.verifyProof(proofId)).publicInputs;
+      
+      return publicInputs.includes('documentValid:true');
+    } catch (error: any) {
+      throw new Error(`Failed to check document validity: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Get document type from proof
+   */
+  async getDocumentType(proofId: string, useBlockchain: boolean = false): Promise<string | null> {
+    try {
+      const publicInputs = useBlockchain
+        ? (await this.getProofFromChain(proofId)).publicInputs
+        : (await this.verifyProof(proofId)).publicInputs;
+      
+      const docTypeInput = publicInputs.find(input => input.startsWith('documentType:'));
+      return docTypeInput ? docTypeInput.split(':')[1] : null;
+    } catch (error: any) {
+      throw new Error(`Failed to get document type: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Parse all public claims from a proof
+   */
+  async getClaims(proofId: string, useBlockchain: boolean = false): Promise<Record<string, any>> {
+    try {
+      const publicInputs = useBlockchain
+        ? (await this.getProofFromChain(proofId)).publicInputs
+        : (await this.verifyProof(proofId)).publicInputs;
+      
+      const claims: Record<string, any> = {};
+      
+      publicInputs.forEach(input => {
+        const [key, value] = input.split(':');
+        
+        // Convert boolean strings
+        if (value === 'true' || value === 'false') {
+          claims[key] = value === 'true';
+        } else {
+          claims[key] = value;
+        }
+      });
+      
+      return claims;
+    } catch (error: any) {
+      throw new Error(`Failed to get claims: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Verify if proof meets specific requirements
+   */
+  async meetsRequirements(proofId: string, requirements: {
+    mustBeAdult?: boolean;
+    allowedCountries?: string[];
+    mustHaveValidDocument?: boolean;
+    allowedDocumentTypes?: string[];
+  }, useBlockchain: boolean = false): Promise<{
+    meets: boolean;
+    reason?: string;
+    claims: Record<string, any>;
+  }> {
+    try {
+      const claims = await this.getClaims(proofId, useBlockchain);
+      
+      // Check adult requirement
+      if (requirements.mustBeAdult && !claims.isAdult) {
+        return {
+          meets: false,
+          reason: 'User is not an adult',
+          claims
+        };
+      }
+      
+      // Check country requirement
+      if (requirements.allowedCountries && 
+          !requirements.allowedCountries.includes(claims.country)) {
+        return {
+          meets: false,
+          reason: `Country ${claims.country} is not allowed`,
+          claims
+        };
+      }
+      
+      // Check document validity
+      if (requirements.mustHaveValidDocument && !claims.documentValid) {
+        return {
+          meets: false,
+          reason: 'Document is not valid or expired',
+          claims
+        };
+      }
+      
+      // Check document type
+      if (requirements.allowedDocumentTypes && 
+          !requirements.allowedDocumentTypes.includes(claims.documentType)) {
+        return {
+          meets: false,
+          reason: `Document type ${claims.documentType} is not allowed`,
+          claims
+        };
+      }
+      
+      return {
+        meets: true,
+        claims
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to verify requirements: ${error.message}`);
     }
   }
   
