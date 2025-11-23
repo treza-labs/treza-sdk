@@ -1,6 +1,19 @@
 // Main exports
 export { TrezaClient } from './client';
 
+// KYC Module exports
+export { TrezaKYCClient } from './kyc';
+export type {
+  ZKProof,
+  TrezaKYCConfig,
+  ProofSubmissionResponse,
+  ProofVerificationResponse,
+  BlockchainProof,
+  KYCData,
+  ProofStatus,
+  UserKYCStatus
+} from './kyc';
+
 // Type exports
 export {
   TrezaConfig,
