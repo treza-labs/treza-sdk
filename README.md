@@ -4,58 +4,38 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue)](https://www.typescriptlang.org/)
 
-Privacy-first DeFi development tools with zero-knowledge compliance integration.
+TypeScript SDK for interacting with TREZA's privacy-preserving KYC system.
 
 ## Features
 
-- **Production zkVerify Integration** - Complete Horizen Relayer API integration for proof verification
-- **Dual Verification Modes** - Oracle-based (fast) AND Smart Contract (trustless) verification  
-- **Smart Verification Routing** - Automatic selection between Oracle and Attestation systems
-- **Professional Attestation** - KYC'd institutional attesters with staking and slashing
-- **Aggregation Support** - Batch proofs for cost-efficient trustless verification
-- **Easy Integration** - Simple APIs for complex privacy-preserving operations
-- **Developer Friendly** - TypeScript support with comprehensive documentation
-- **React Components** - Pre-built UI components for seamless integration
-- **Multi-Chain Support** - Works across Ethereum and compatible networks
+- **Zero-Knowledge KYC** - Verify identity without exposing personal data
+- **Blockchain Integration** - Direct integration with KYCVerifier smart contracts  
+- **Convenience Methods** - Simple APIs for common KYC checks (age, country, document validity)
+- **Dual Verification** - API-based (fast) OR blockchain-based (trustless)
+- **TypeScript Support** - Full type safety and IntelliSense
+- **Easy Integration** - Works with any TypeScript/JavaScript project
+- **No Authentication Required** - Open API protected by rate limiting
+- **Multi-Chain Support** - Ethereum, Sepolia, and compatible networks
 - **Secure by Design** - No personal data storage, cryptographic proofs only
-
-## Packages
-
-| Package | Description | Version |
-|---------|-------------|---------|
-| [`@treza/sdk`](./packages/core) | Core SDK functionality | ![npm](https://img.shields.io/npm/v/@treza/sdk) |
-| [`@treza/react`](./packages/react) | React components and hooks | ![npm](https://img.shields.io/npm/v/@treza/react) |
 
 ## Quick Start
 
 ### Installation
 
 ```bash
-# Core SDK
 npm install @treza/sdk ethers
-
-# React components (includes core SDK)
-npm install @treza/react @treza/sdk ethers react react-dom
 ```
 
 ### Environment Setup
 
-Create a `.env` file in your project root:
-
-```bash
-# Copy the example file
-cp node_modules/@treza/sdk/.env.example .env
-```
-
-Or manually create `.env` with these variables:
+Create a `.env` file:
 
 ```bash
 # API Configuration
 TREZA_API_URL=https://api.treza.io/api
 # For local development: http://localhost:3000/api
-TREZA_API_KEY=your-api-key-here
 
-# Blockchain Configuration
+# Blockchain Configuration  
 SEPOLIA_RPC_URL=https://rpc.sepolia.org
 SEPOLIA_KYC_VERIFIER_ADDRESS=0xB1D98F688Fac29471D91234d9f8EbB37238Df6FA
 
@@ -65,7 +45,7 @@ PRIVATE_KEY=0x...your-private-key
 
 See [`.env.example`](./.env.example) for all available configuration options.
 
-### KYC SDK Usage
+### Basic Usage
 
 ```typescript
 import { TrezaKYCClient } from '@treza/sdk/kyc';
@@ -73,11 +53,9 @@ import { TrezaKYCClient } from '@treza/sdk/kyc';
 // Initialize client
 const client = new TrezaKYCClient({
   apiUrl: process.env.TREZA_API_URL,
-  apiKey: process.env.TREZA_API_KEY,
   blockchain: {
     rpcUrl: process.env.SEPOLIA_RPC_URL,
     contractAddress: process.env.SEPOLIA_KYC_VERIFIER_ADDRESS,
-    privateKey: process.env.PRIVATE_KEY, // Optional, only for write operations
   },
 });
 
@@ -109,472 +87,187 @@ if (result.meets) {
 }
 ```
 
-See [Quick Reference](./QUICK_REFERENCE.md) for more KYC SDK examples.
+See [Quick Reference](./QUICK_REFERENCE.md) for more examples and complete API documentation.
 
-### Compliance SDK Usage
+## Core Features
+
+### Convenience Methods
+
+The SDK provides simple methods for common KYC checks:
 
 ```typescript
-import { TrezaComplianceSDK, TrezaComplianceHelper } from '@treza/sdk';
-import { ethers } from 'ethers';
+// Check specific claims
+const isAdult = await client.isAdult(proofId);
+const country = await client.getCountry(proofId);
+const hasValidDoc = await client.hasValidDocument(proofId);
+const docType = await client.getDocumentType(proofId);
 
-// Initialize the SDK
-const provider = new ethers.BrowserProvider(window.ethereum);
-const signer = await provider.getSigner();
+// Get all claims at once
+const claims = await client.getClaims(proofId);
 
-// Option 1: Production SDK with Oracle and Attestation systems
-const sdk = TrezaComplianceHelper.createProductionSDK(
-  provider,
-  "0x...", // zkVerifyOracleAddress
-  "0x...", // attestationSystemAddress
-  signer
-);
-
-// Option 2: Custom configuration
-const customSdk = new TrezaComplianceSDK({
-  zkPassportDomain: "your-domain.com",
-  zkVerifyEndpoint: "https://api.zkverify.io",
-  trezaTokenAddress: "0x...",
-  complianceVerifierAddress: "0x...",
-  complianceIntegrationAddress: "0x...",
-  zkVerifyOracleAddress: "0x...",        // New: Oracle system
-  attestationSystemAddress: "0x...",     // New: Attestation system
-  verificationMode: 3,                   // New: Hybrid mode (0=fallback, 1=oracle, 2=attestation, 3=hybrid)
-  transactionValueThreshold: "1000000",  // New: $1M threshold for attestation
-  provider,
-  signer
-});
-
-// Initiate compliance verification (automatically routes to best verification method)
-const verificationUrl = await sdk.initiateVerification({
-  minAge: 18,
+// Verify multiple requirements
+const result = await client.meetsRequirements(proofId, {
+  mustBeAdult: true,
   allowedCountries: ['US', 'CA', 'GB'],
-  requiredAttributes: ['firstname']
+  mustHaveValidDocument: true,
+  allowedDocumentTypes: ['passport', 'drivers_license']
 });
-
-console.log('Scan this QR code:', verificationUrl);
-
-// Check verification mode being used
-const mode = await sdk.getVerificationMode();
-console.log('Current verification mode:', mode); // 0=fallback, 1=oracle, 2=attestation, 3=hybrid
 ```
 
-### React Integration
+### Dual Verification
 
-```tsx
-import React from 'react';
-import {
-  ComplianceProvider,
-  ComplianceVerification,
-  ComplianceStatusDisplay
-} from '@treza/react';
-import { ethers } from 'ethers';
-
-function App() {
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  const signer = await provider.getSigner();
-  const userAddress = "0x...";
-
-  return (
-    <ComplianceProvider 
-      provider={provider} 
-      signer={signer}
-      // New: zkVerify production system configuration
-      verificationMode={3}                    // Hybrid mode
-      zkVerifyOracleAddress="0x..."          // Oracle contract
-      attestationSystemAddress="0x..."       // Attestation contract
-      transactionValueThreshold="1000000"    // $1M threshold
-    >
-      <div>
-        <h1>TREZA DApp</h1>
-        
-        {/* Show compliance status */}
-        <ComplianceStatusDisplay 
-          userAddress={userAddress}
-          showDetails={true}
-        />
-        
-        {/* Verification flow - automatically uses best verification method */}
-        <ComplianceVerification
-          userAddress={userAddress}
-          requirements={{
-            minAge: 18,
-            allowedCountries: ['US', 'CA', 'GB']
-          }}
-          onVerificationComplete={(result) => {
-            console.log('Verified with method:', result.verificationMethod);
-            console.log('Oracle used:', result.oracleVerified);
-            console.log('Attestation used:', result.attestationVerified);
-          }}
-        />
-      </div>
-    </ComplianceProvider>
-  );
-}
-```
-
-## zkVerify Production Integration
-
-The TREZA SDK includes **dual-mode** zkVerify integration via Horizen Labs Relayer API:
-
-### NEW: Smart Contract Verification (Trustless)
-- **Zero Trust Required**: Direct cryptographic verification on-chain
-- **Cost Efficient**: 66% cheaper at scale via proof aggregation
-- **Censorship Resistant**: No intermediary oracle nodes
-- **Tradeoff**: Requires 5-10 minutes for aggregation window
-
-### Oracle-Based Verification (Fast)
-- **Instant Verification**: 30-60 seconds end-to-end
-- **High Volume**: Optimized for frequent small transactions
-- **Multi-Oracle Consensus**: Redundancy and security
-- **Tradeoff**: Requires trust in oracle network
-
-### Hybrid Approach (Recommended)
-Use both based on transaction value and risk profile:
-- High-value (>$10k): Smart contract verification (trustless)
-- Low-value (<$10k): Oracle verification (fast)
-
----
-
-### Previous Systems (Still Supported):
-
-
-
-### Oracle System
-- **Fast Verification**: Automated verification for high-volume transactions
-- **Multi-Oracle Consensus**: Multiple authorized oracles for redundancy
-- **Cryptographic Proofs**: Signature verification of zkVerify results
-- **Gas Optimized**: Efficient on-chain storage and retrieval
-
-### Attestation System  
-- **Professional Review**: KYC'd institutional and individual attesters
-- **Tier-Based Access**: Bronze, Silver, Gold, Platinum attester levels
-- **Economic Security**: Staking mechanism with slashing for incorrect attestations
-- **Rich Metadata**: Detailed context for attestation decisions
-
-### Hybrid Verification
-- **Smart Routing**: Automatic selection between Oracle and Attestation
-- **Value-Based Logic**: High-value transactions → Attestation, High-volume → Oracle
-- **Fallback Modes**: Graceful degradation when systems are unavailable
-- **Runtime Configuration**: Admin controls for verification strategies
-
-### Verification Modes
-
-| Mode | Description | Use Case | Speed | Trust | Cost |
-|------|-------------|----------|-------|-------|------|
-| **Smart Contract** | Trustless aggregation verification | High-value (>$10k) | 5-10 min | Zero trust | ~$2.50 |
-| **Oracle** | Automated oracle verification | High-volume DeFi | 30-60s | Oracle trust | ~$7.50 |
-| **Attestation** | Professional attester review | Special cases | Slower | Attester trust | Variable |
-| **Hybrid** | Smart routing (Oracle + Smart Contract) | Production | Mixed | Adaptive | Optimized |
-
-### zkVerify Bridge API
+Choose between API-based (fast) or blockchain-based (trustless) verification:
 
 ```typescript
-import { ZKVerifyBridge } from '@treza/sdk';
+// Via API (fast)
+const isAdult = await client.isAdult(proofId);
 
-// Initialize bridge
-const bridge = new ZKVerifyBridge('https://yourdomain.com/api');
-
-// Method 1: Oracle verification (fast)
-const result = await bridge.processComplianceVerification(
-  zkPassportProof,
-  userAddress,
-  true  // Submit to oracle
-);
-
-// Method 2: Smart contract verification (trustless)
-const result = await bridge.processComplianceWithAggregation(
-  zkPassportProof,
-  userAddress,
-  11155111  // Chain ID for aggregation
-);
+// Via blockchain (trustless)  
+const isAdultOnChain = await client.isAdult(proofId, true);
 ```
 
-**Key Methods:**
-- `processComplianceVerification()` - Oracle-based (30-60s)
-- `processComplianceWithAggregation()` - Smart contract (5-10min, trustless)
-- `submitToZKVerify()` - Low-level proof submission
-- `waitForJobFinalization()` - Poll verification status
-- `getAggregationData()` - Get Merkle proofs for on-chain verification
-- `registerVerificationKey()` - Register circuit VK with zkVerify
+### Blockchain Operations
 
-## React Components & Hooks
+Direct interaction with KYCVerifier smart contracts:
 
-The `@treza/react` package provides comprehensive React integration for ZKPassport compliance with full zkVerify support.
+```typescript
+// Check if user has valid KYC on-chain
+const hasKYC = await client.hasValidKYC(userAddress);
 
-### Components
+// Get proof details from blockchain
+const proof = await client.getProofFromChain(proofId);
 
-#### `ComplianceProvider`
-Wraps your application to provide compliance context with zkVerify integration.
-
-```tsx
-<ComplianceProvider 
-  provider={ethersProvider} 
-  signer={ethersSigner}
-  verificationMode={3}                    // 0=fallback, 1=oracle, 2=attestation, 3=hybrid
-  zkVerifyOracleAddress="0x..."          // Oracle contract address
-  attestationSystemAddress="0x..."       // Attestation contract address
-  transactionValueThreshold="1000000"    // Threshold for attestation routing
->
-  {/* Your app */}
-</ComplianceProvider>
+// Get user's latest proof ID
+const proofId = await client.getUserProofId(userAddress);
 ```
-
-**New Props:**
-- `verificationMode` - Verification strategy (0-3)
-- `zkVerifyOracleAddress` - Oracle system contract address
-- `attestationSystemAddress` - Attestation system contract address  
-- `transactionValueThreshold` - USD value threshold for attestation routing
-
-#### `ComplianceVerification`
-Handles the complete verification flow with QR code generation.
-
-```tsx
-<ComplianceVerification
-  userAddress="0x..."
-  requirements={{
-    minAge: 18,
-    allowedCountries: ['US', 'CA', 'GB'],
-    requiredAttributes: ['firstname']
-  }}
-  onVerificationComplete={(result) => {
-    console.log('Verification complete:', result);
-  }}
-/>
-```
-
-**Props:**
-- `userAddress` - User's wallet address
-- `requirements` - Compliance requirements (age, countries, attributes)
-- `onVerificationComplete` - Callback when verification succeeds
-- `onError` - Error callback
-- `className` - Custom CSS class
-
-#### `ComplianceStatusDisplay`
-Shows the current compliance status of a user.
-
-```tsx
-<ComplianceStatusDisplay 
-  userAddress="0x..."
-  showDetails={true}
-  autoRefresh={true}
-  refreshInterval={30000}
-/>
-```
-
-**Props:**
-- `userAddress` - User's wallet address
-- `showDetails` - Show detailed compliance information
-- `autoRefresh` - Automatically refresh status
-- `refreshInterval` - Refresh interval in milliseconds (default: 30000)
-- `className` - Custom CSS class
-
-#### `GovernanceEligibility`
-Check and display governance voting eligibility.
-
-```tsx
-<GovernanceEligibility
-  userAddress="0x..."
-  proposalId={1}
-  onEligibilityChange={(eligible) => {
-    console.log('User eligible:', eligible);
-  }}
-/>
-```
-
-**Props:**
-- `userAddress` - User's wallet address
-- `proposalId` - Governance proposal ID
-- `onEligibilityChange` - Callback when eligibility changes
-- `className` - Custom CSS class
-
-### Hooks
-
-#### `useWallet()`
-Manage wallet connection and state.
-
-```tsx
-const {
-  isConnected,
-  isConnecting,
-  walletInfo,
-  provider,
-  signer,
-  address,
-  error,
-  connect,
-  disconnect,
-  switchNetwork
-} = useWallet();
-
-// Connect wallet
-await connect();
-
-// Switch network
-await switchNetwork(1); // Mainnet
-```
-
-#### `useCompliance(provider?, signer?)`
-Access compliance functionality.
-
-```tsx
-const {
-  isInitialized,
-  isLoading,
-  error,
-  checkStatus,
-  initiateVerification,
-  completeVerification,
-  checkGovernanceEligibility
-} = useCompliance(provider, signer);
-
-// Check compliance status
-const status = await checkStatus('0x...');
-
-// Initiate verification
-const qrUrl = await initiateVerification({
-  minAge: 18,
-  allowedCountries: ['US', 'CA']
-});
-```
-
-#### `useVerificationFlow(provider?, signer?)`
-Simplified verification flow management.
-
-```tsx
-const {
-  isVerifying,
-  verificationUrl,
-  status,
-  error,
-  startVerification,
-  pollStatus,
-  reset
-} = useVerificationFlow(provider, signer);
-
-// Start verification and get QR code
-await startVerification({
-  userAddress: '0x...',
-  requirements: { minAge: 18 }
-});
-
-// Poll for completion
-const result = await pollStatus('0x...');
-```
-
-#### `useTreza()`
-Combined hook for full TREZA functionality (wallet + compliance).
-
-```tsx
-const {
-  // Wallet
-  isConnected,
-  address,
-  connect,
-  disconnect,
-  
-  // Compliance
-  checkCompliance,
-  startVerification,
-  
-  // State
-  isLoading,
-  error
-} = useTreza();
-```
-
-### Custom Styling
-
-All components accept a `className` prop for custom styling. You can also import the default styles:
-
-```tsx
-import { complianceStyles } from '@treza/react';
-
-// Inject into your app
-const styleTag = document.createElement('style');
-styleTag.innerHTML = complianceStyles;
-document.head.appendChild(styleTag);
-```
-
-### Environment Variables
-
-```bash
-# React app environment variables
-REACT_APP_TREZA_TOKEN_ADDRESS=0x...
-REACT_APP_COMPLIANCE_VERIFIER_ADDRESS=0x...
-REACT_APP_COMPLIANCE_INTEGRATION_ADDRESS=0x...
-
-# New: zkVerify production system addresses
-REACT_APP_ZKVERIFY_ORACLE_ADDRESS=0x...
-REACT_APP_ATTESTATION_SYSTEM_ADDRESS=0x...
-
-# New: Verification configuration
-REACT_APP_VERIFICATION_MODE=3                    # 0=fallback, 1=oracle, 2=attestation, 3=hybrid
-REACT_APP_TRANSACTION_VALUE_THRESHOLD=1000000    # USD threshold for attestation routing
-```
-
-### ZKPassport Integration
-
-The React components seamlessly integrate with ZKPassport and zkVerify for production-grade zero-knowledge identity verification:
-
-1. **User initiates verification** → `ComplianceVerification` generates QR code
-2. **User scans QR** → Opens ZKPassport mobile app  
-3. **ZKPassport verifies identity** → Government ID verification
-4. **Zero-knowledge proof generated** → No personal data shared
-5. **Proof submitted to zkVerify** → Proof verified on zkVerify blockchain
-6. **TREZA SDK routes verification** → Oracle (fast) or Attestation (secure) based on transaction value
-7. **On-chain verification** → Oracle consensus or professional attester review
-8. **Compliance status updated** → Components automatically reflect new status with verification method details
 
 ## Architecture
 
-The TREZA SDK provides a complete privacy-preserving compliance solution with production zkVerify integration:
+```
+┌─────────────────────────────────────┐
+│        Your Application             │
+│  (Node.js / Browser / React)        │
+└─────────────┬───────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────┐
+│         TREZA SDK                   │
+│  • TrezaKYCClient                   │
+│  • Convenience methods              │
+│  • Type-safe API                    │
+└─────────────┬───────────────────────┘
+              │
+        ┌─────┴─────┐
+        │           │
+        ▼           ▼
+┌───────────┐  ┌────────────────┐
+│  API      │  │   Blockchain   │
+│  (Fast)   │  │  (Trustless)   │
+│           │  │                │
+│ • Verify  │  │ • KYCVerifier  │
+│   Claims  │  │   Contract     │
+│ • Get     │  │ • On-chain     │
+│   Proofs  │  │   Proofs       │
+└───────────┘  └────────────────┘
+```
 
+## API Reference
+
+### TrezaKYCClient
+
+#### Constructor
+
+```typescript
+new TrezaKYCClient(config: TrezaKYCConfig)
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Your DApp     │    │   TREZA SDK     │    │   ZKPassport    │
-│                 │    │                 │    │                 │
-│ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
-│ │   React     │◄┼────┼►│   React     │ │    │ │   Mobile    │ │
-│ │ Components  │ │    │ │ Components  │ │    │ │    App      │ │
-│ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
-│                 │    │        │        │    │        │        │
-│ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
-│ │   Business  │◄┼────┼►│ Core SDK +  │◄┼────┼►│ ZK Proofs   │ │
-│ │    Logic    │ │    │ │ Hybrid      │ │    │ │ Generation  │ │
-│ │             │ │    │ │ Routing     │ │    │ │             │ │
-│ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Ethereum      │    │    zkVerify     │    │  Government     │
-│  Smart          │    │   Blockchain    │    │      ID         │
-│  Contracts      │    │                 │    │  Verification   │
-│                 │    └─────────────────┘    └─────────────────┘
-│ ┌─────────────┐ │             │
-│ │   Oracle    │◄┼─────────────┘
-│ │  System     │ │    ⚡ Fast verification
-│ └─────────────┘ │      for high-volume
-│                 │
-│ ┌─────────────┐ │
-│ │ Attestation │ │    🔒 Secure verification  
-│ │  System     │ │      for high-value
-│ └─────────────┘ │
-│                 │
-│ ┌─────────────┐ │
-│ │ ZKPassport  │ │    🛡️ Main compliance
-│ │  Verifier   │ │      contract
-│ └─────────────┘ │
-└─────────────────┘
+
+**Config Options:**
+- `apiUrl`: API endpoint URL (required)
+- `apiKey`: API key for authenticated requests (optional)
+- `blockchain`: Blockchain configuration (optional)
+  - `rpcUrl`: Ethereum RPC URL
+  - `contractAddress`: KYCVerifier contract address
+  - `privateKey`: Private key for write operations (optional)
+
+#### Methods
+
+**Convenience Methods:**
+- `isAdult(proofId, useBlockchain?)` - Check if user is 18+
+- `getCountry(proofId, useBlockchain?)` - Get user's nationality
+- `hasValidDocument(proofId, useBlockchain?)` - Check document validity
+- `getDocumentType(proofId, useBlockchain?)` - Get document type
+- `getClaims(proofId, useBlockchain?)` - Get all public claims
+- `meetsRequirements(proofId, requirements, useBlockchain?)` - Verify requirements
+
+**Core Methods:**
+- `submitProof(params)` - Submit proof to API
+- `verifyProof(proofId)` - Verify proof via API
+- `getProof(proofId)` - Get proof details
+
+**Blockchain Methods:**
+- `hasValidKYC(userAddress)` - Check if user has valid KYC on-chain
+- `getProofFromChain(proofId)` - Get proof from blockchain
+- `getUserProofId(userAddress)` - Get user's latest proof ID
+- `submitProofOnChain(params)` - Submit proof to blockchain
+- `verifyProofOnChain(params)` - Verify proof on blockchain
+
+## Examples
+
+### Age-Gated Content
+
+```typescript
+async function checkAccess(proofId: string) {
+  const client = new TrezaKYCClient({ apiUrl: process.env.TREZA_API_URL });
+  const isAdult = await client.isAdult(proofId);
+  
+  if (isAdult) {
+    return { access: 'granted' };
+  } else {
+    return { access: 'denied', reason: 'Must be 18+' };
+  }
+}
 ```
+
+### Country Restrictions
+
+```typescript
+async function checkEligibility(proofId: string) {
+  const client = new TrezaKYCClient({ apiUrl: process.env.TREZA_API_URL });
+  const country = await client.getCountry(proofId);
+  const allowedCountries = ['US', 'CA', 'GB'];
+  
+  if (allowedCountries.includes(country)) {
+    return { eligible: true };
+  } else {
+    return { eligible: false, reason: `Not available in ${country}` };
+  }
+}
+```
+
+### KYC-Gated Platform
+
+```typescript
+async function verifyKYC(proofId: string) {
+  const client = new TrezaKYCClient({ apiUrl: process.env.TREZA_API_URL });
+  
+  const result = await client.meetsRequirements(proofId, {
+    mustBeAdult: true,
+    mustHaveValidDocument: true,
+    allowedCountries: ['US', 'CA', 'MX', 'GB'],
+  });
+  
+  return result.meets;
+}
+```
+
+## Documentation
+
+- **[Quick Reference](./QUICK_REFERENCE.md)** - Common use cases and examples
+- **[Environment Configuration](./ENVIRONMENT_CONFIG.md)** - Complete configuration guide
+- **[Setup Guide](./setup-env.sh)** - Interactive setup script
+- **[Examples](./examples/kyc/)** - Working code examples
 
 ## Development
-
-### Prerequisites
-
-- Node.js 16+
-- npm 8+
-- Git
 
 ### Setup
 
@@ -584,75 +277,45 @@ cd treza-sdk
 npm install
 ```
 
-### Development Commands
+### Build
 
 ```bash
-# Build all packages
 npm run build
-
-# Build specific package
-npm run build:core
-npm run build:react
-
-# Development mode (watch)
-npm run dev
-
-# Run tests
-npm run test
-
-# Lint and format
-npm run lint
 ```
 
-### Project Structure
+### Run Examples
 
+```bash
+# Setup environment
+./setup-env.sh
+
+# Check adult status
+npx tsx examples/kyc/check-adult.ts <proofId>
+
+# Submit proof
+npx tsx examples/kyc/submit-proof.ts
+
+# Verify proof
+npx tsx examples/kyc/verify-proof.ts <proofId>
 ```
-packages/
-├── core/                   # Core SDK (@treza/sdk)
-│   ├── src/
-│   │   ├── compliance/     # Compliance functionality
-│   │   └── index.ts        # Main exports
-│   └── package.json
-├── react/                  # React components (@treza/react)
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── hooks/          # React hooks
-│   │   └── index.ts        # Main exports
-│   └── package.json
-examples/                   # Usage examples
-docs/                       # Documentation
-```
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Workflow
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass: `npm test`
-6. Commit your changes: `git commit -m 'Add amazing feature'`
-7. Push to the branch: `git push origin feature/amazing-feature`
-8. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Links
-
-- **Website**: [trezalabs.com](https://trezalabs.com)
-- **Documentation**: [docs.trezalabs.com](https://docs.trezalabs.com)
-- **Smart Contracts**: [treza-contracts](https://github.com/treza-labs/treza-contracts)
-- **Twitter**: [@trezalabs](https://twitter.com/trezalabs)
 
 ## Support
 
-- **Documentation**: [docs.trezalabs.com](https://docs.trezalabs.com)
+- **Documentation**: [QUICK_REFERENCE.md](./QUICK_REFERENCE.md)
 - **GitHub Issues**: [Report bugs](https://github.com/treza-labs/treza-sdk/issues)
-- **Email**: [hello@trezalabs.com](mailto:hello@trezalabs.com)
+- **Website**: [trezalabs.com](https://trezalabs.com)
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Links
+
+- **GitHub**: [github.com/treza-labs/treza-sdk](https://github.com/treza-labs/treza-sdk)
+- **npm**: [@treza/sdk](https://www.npmjs.com/package/@treza/sdk)
+- **Smart Contracts**: [treza-contracts](https://github.com/treza-labs/treza-contracts)
+- **Mobile App**: [treza-mobile](https://github.com/treza-labs/treza-mobile)
+- **Backend API**: [treza-app](https://github.com/treza-labs/treza-app)
 
 ---
+

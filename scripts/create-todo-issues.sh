@@ -348,8 +348,8 @@ console.log(\"⚠️  This is a placeholder - update before deployment!\\n\");
 - Get mainnet contract address for production
 
 ### Option 2: Deploy Own Contract
-- Deploy \`ZKVerifyAggregationVerifier.sol\`
-- Requires VERIFICATION_KEY_HASH first
+- Deploy KYC verification contracts
+- Configure integration parameters
 
 ### Option 3: Check Relayer API Documentation
 - Aggregation response may include contract references

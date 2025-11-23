@@ -99,11 +99,9 @@ Track implementation gaps, placeholders, and TODOs before production deployment.
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| ZKVerifyAggregationVerifier | ✅ Complete | Contract ready |
-| IVerifyProofAggregation | ✅ Complete | Interface defined |
+| KYCVerifier | ✅ Complete | Contract ready |
+| TrezaComplianceIntegration | ✅ Complete | Contract ready |
 | Deployment Scripts | ✅ Complete | Scripts working |
-| **ZKVERIFY_CONTRACT_ADDRESS** | ❌ **Not Set** | Need address |
-| **VERIFICATION_KEY_HASH** | ❌ **Not Set** | Need to register VK |
 | Security Audit | ⚠️ Pending | Recommended before mainnet |
 | Gas Optimization | ✅ Complete | Efficient implementation |
 
