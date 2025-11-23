@@ -32,7 +32,7 @@ Create a `.env` file:
 
 ```bash
 # API Configuration
-TREZA_API_URL=https://api.treza.io/api
+TREZA_API_URL=https://api.trezalabs.com/api
 # For local development: http://localhost:3000/api
 
 # Blockchain Configuration  
