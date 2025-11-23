@@ -1,6 +1,6 @@
 {
   "name": "@treza/sdk-monorepo",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "TREZA SDK - Privacy-first DeFi development tools",
   "keywords": [

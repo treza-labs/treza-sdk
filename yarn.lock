@@ -1186,11 +1186,19 @@
   integrity sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==
 
 "@treza/react@file:/Users/adaro/PROJECTS/TREZA/DEV/treza-sdk/packages/react":
-  version "1.0.0"
+  version "1.0.2"
   resolved "file:packages/react"
 
+"@treza/sdk@^0.1.1":
+  version "0.1.1"
+  resolved "https://registry.npmjs.org/@treza/sdk/-/sdk-0.1.1.tgz"
+  integrity sha512-lJEGZro2jcGI/2mPMgfJpMY4QKsGfArDzOPm0E5Q1SB2CsSbiok/lTUdJ1q8gIwOPU+fyXrcwrPDPXmXPA/sbQ==
+  dependencies:
+    "@zkpassport/sdk" "^0.12.4"
+    ethers "^6.13.5"
+
 "@treza/sdk@file:/Users/adaro/PROJECTS/TREZA/DEV/treza-sdk/packages/core":
-  version "1.0.0"
+  version "1.0.2"
   resolved "file:packages/core"
   dependencies:
     "@zkpassport/sdk" "^0.12.4"
@@ -2675,6 +2683,11 @@ fs.realpath@^1.0.0:
   version "1.0.0"
   resolved "https://registry.npmjs.org/fs.realpath/-/fs.realpath-1.0.0.tgz"
   integrity sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==
+
+fsevents@^2.3.2, fsevents@~2.3.2:
+  version "2.3.3"
+  resolved "https://registry.npmjs.org/fsevents/-/fsevents-2.3.3.tgz"
+  integrity sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==
 
 function-bind@^1.1.2:
   version "1.1.2"
