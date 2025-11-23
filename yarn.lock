@@ -1186,8 +1186,10 @@
   integrity sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==
 
 "@treza/react@file:/Users/adaro/PROJECTS/TREZA/DEV/treza-sdk/packages/react":
-  version "1.0.2"
+  version "1.0.3"
   resolved "file:packages/react"
+  dependencies:
+    "@treza/sdk" "^0.1.1"
 
 "@treza/sdk@^0.1.1":
   version "0.1.1"
@@ -1198,7 +1200,7 @@
     ethers "^6.13.5"
 
 "@treza/sdk@file:/Users/adaro/PROJECTS/TREZA/DEV/treza-sdk/packages/core":
-  version "1.0.2"
+  version "1.0.3"
   resolved "file:packages/core"
   dependencies:
     "@zkpassport/sdk" "^0.12.4"
