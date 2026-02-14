@@ -7,6 +7,7 @@
 
 import axios, { AxiosInstance } from 'axios';
 import { ethers } from 'ethers';
+import { SignerProvider } from '../signing/types';
 
 export interface ZKProof {
   commitment: string;
@@ -22,6 +23,34 @@ export interface TrezaKYCConfig {
   blockchain?: {
     rpcUrl: string;
     contractAddress: string;
+    /**
+     * Recommended: A SignerProvider for secure key management.
+     *
+     * Use EnclaveSigner for production (keys never leave the TEE),
+     * LocalSigner for development, or BrowserWalletSigner for client-side.
+     *
+     * @example
+     * ```typescript
+     * import { EnclaveSigner } from '@treza/sdk/signing';
+     *
+     * signerProvider: new EnclaveSigner(platformClient, { enclaveId: 'enc_abc123' })
+     * ```
+     */
+    signerProvider?: SignerProvider;
+    /**
+     * @deprecated Use `signerProvider` instead. Raw private keys in configuration
+     * are insecure for production use. This field is kept for backward compatibility
+     * and development convenience only. In production, use EnclaveSigner.
+     *
+     * @example
+     * ```typescript
+     * // DEPRECATED - development only:
+     * privateKey: process.env.PRIVATE_KEY
+     *
+     * // RECOMMENDED - use signerProvider:
+     * signerProvider: new EnclaveSigner(client, { enclaveId: 'enc_abc123' })
+     * ```
+     */
     privateKey?: string;
   };
 }
@@ -91,6 +120,24 @@ export class TrezaKYCClient {
         TrezaKYCClient.CONTRACT_ABI,
         this.provider
       );
+
+      // Emit deprecation warning if using raw privateKey
+      if (config.blockchain.privateKey && !config.blockchain.signerProvider) {
+        console.warn(
+          '[Treza SDK] DEPRECATION: Passing `privateKey` directly in blockchain config is deprecated ' +
+          'and insecure for production use. Use `signerProvider` instead:\n' +
+          '\n' +
+          '  // Development:\n' +
+          '  import { LocalSigner } from \'@treza/sdk/signing\';\n' +
+          '  signerProvider: new LocalSigner(process.env.PRIVATE_KEY)\n' +
+          '\n' +
+          '  // Production (recommended):\n' +
+          '  import { EnclaveSigner } from \'@treza/sdk/signing\';\n' +
+          '  signerProvider: new EnclaveSigner(platformClient, { enclaveId: \'enc_...\' })\n' +
+          '\n' +
+          'See: https://docs.trezalabs.com/sdk/signing'
+        );
+      }
     }
   }
   
@@ -161,15 +208,8 @@ export class TrezaKYCClient {
     }
     
     try {
-      // Get signer
-      let signer: ethers.Signer;
-      if (params.signer) {
-        signer = params.signer;
-      } else if (this.config.blockchain?.privateKey) {
-        signer = new ethers.Wallet(this.config.blockchain.privateKey, this.provider);
-      } else {
-        throw new Error('No signer available');
-      }
+      // Get signer: params.signer > signerProvider > deprecated privateKey
+      const signer = await this.resolveSigner(params.signer);
       
       // Connect contract to signer
       const contractWithSigner = this.contract.connect(signer) as ethers.Contract;
@@ -209,15 +249,8 @@ export class TrezaKYCClient {
     }
     
     try {
-      // Get signer
-      let signer: ethers.Signer;
-      if (params.signer) {
-        signer = params.signer;
-      } else if (this.config.blockchain?.privateKey) {
-        signer = new ethers.Wallet(this.config.blockchain.privateKey, this.provider);
-      } else {
-        throw new Error('No signer available');
-      }
+      // Get signer: params.signer > signerProvider > deprecated privateKey
+      const signer = await this.resolveSigner(params.signer);
       
       // Connect contract to signer
       const contractWithSigner = this.contract.connect(signer) as ethers.Contract;
@@ -473,6 +506,46 @@ export class TrezaKYCClient {
     }
   }
   
+  // ==================== Signer Resolution ====================
+  
+  /**
+   * Resolve a signer using the priority chain:
+   * 1. Explicit signer passed to the method
+   * 2. SignerProvider from blockchain config (recommended)
+   * 3. Deprecated privateKey from blockchain config
+   *
+   * @param explicitSigner - Optional signer passed directly to a method
+   * @returns A resolved ethers.Signer
+   */
+  private async resolveSigner(explicitSigner?: ethers.Signer): Promise<ethers.Signer> {
+    // 1. Explicit signer takes highest priority
+    if (explicitSigner) {
+      return explicitSigner;
+    }
+
+    // 2. SignerProvider (recommended path)
+    if (this.config.blockchain?.signerProvider) {
+      return this.config.blockchain.signerProvider.getSigner(this.provider);
+    }
+
+    // 3. Deprecated privateKey fallback
+    if (this.config.blockchain?.privateKey && this.provider) {
+      return new ethers.Wallet(this.config.blockchain.privateKey, this.provider);
+    }
+
+    throw new Error(
+      'No signer available. Configure a signerProvider in your blockchain config:\n' +
+      '\n' +
+      '  // Production (recommended):\n' +
+      '  import { EnclaveSigner } from \'@treza/sdk/signing\';\n' +
+      '  blockchain: { signerProvider: new EnclaveSigner(client, { enclaveId: \'enc_...\' }) }\n' +
+      '\n' +
+      '  // Development:\n' +
+      '  import { LocalSigner } from \'@treza/sdk/signing\';\n' +
+      '  blockchain: { signerProvider: new LocalSigner(process.env.PRIVATE_KEY) }\n'
+    );
+  }
+
   // ==================== Utility Methods ====================
   
   /**

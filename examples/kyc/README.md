@@ -24,9 +24,15 @@ nano .env
 ```bash
 export TREZA_API_URL="http://localhost:3000/api"
 export TREZA_API_KEY="your-api-key"
+export TREZA_PLATFORM_URL="https://app.trezalabs.com"
 export SEPOLIA_RPC_URL="https://rpc.sepolia.org"
 export SEPOLIA_KYC_VERIFIER_ADDRESS="0xB1D98F688Fac29471D91234d9f8EbB37238Df6FA"
-export PRIVATE_KEY="0x..."  # Only for proof submission
+
+# For production signing (recommended):
+export TREZA_ENCLAVE_ID="enc_..."
+
+# For local dev only (do NOT use in production):
+# export PRIVATE_KEY="0x..."
 ```
 
 **Required Variables:**
@@ -34,20 +40,34 @@ export PRIVATE_KEY="0x..."  # Only for proof submission
 - `SEPOLIA_RPC_URL` - Ethereum RPC endpoint
 - `SEPOLIA_KYC_VERIFIER_ADDRESS` - KYCVerifier contract address
 
+**For Blockchain Write Operations (choose one):**
+- `TREZA_ENCLAVE_ID` - Enclave ID for production signing via EnclaveSigner (recommended)
+- `PRIVATE_KEY` - Private key for LocalSigner (development only)
+
 **Optional Variables:**
 - `TREZA_API_KEY` - API authentication key
-- `PRIVATE_KEY` - Private key for blockchain write operations
+- `TREZA_PLATFORM_URL` - Treza Platform URL (defaults to https://app.trezalabs.com)
 
 See [`../../.env.example`](../../.env.example) for all available options.
 
 ## Examples
 
-### Submit Proof
+### Enclave Signing (Production Recommended)
 
-Submit a ZK proof to both API and blockchain:
+Submit a ZK proof with signing inside a Treza Nitro Enclave. Private keys never leave the TEE.
 
 ```bash
-ts-node examples/kyc/submit-proof.ts
+npx tsx examples/kyc/enclave-signing.ts
+```
+
+Requires `TREZA_ENCLAVE_ID` to be set. See the [Enclave Signing Guide](../../README.md#key-management--signing) for setup.
+
+### Submit Proof (Local Dev)
+
+Submit a ZK proof to both API and blockchain using LocalSigner:
+
+```bash
+npx tsx examples/kyc/submit-proof.ts
 ```
 
 ### Verify Proof
@@ -95,28 +115,34 @@ const verification = await client.verifyProof(result.proofId);
 console.log('Valid:', verification.isValid);
 ```
 
-### With Blockchain
+### With Blockchain (Production)
 
 ```typescript
-import { TrezaKYCClient } from 'treza-sdk/kyc';
-import { ethers } from 'ethers';
+import { TrezaClient, TrezaKYCClient, EnclaveSigner } from '@treza/sdk';
+
+// Production: signing via enclave
+const platform = new TrezaClient();
+const signer = new EnclaveSigner(platform, { enclaveId: 'enc_abc123' });
 
 const client = new TrezaKYCClient({
   apiUrl: 'https://api.treza.io',
   blockchain: {
-    rpcUrl: 'https://eth-mainnet.alchemyapi.io/v2/YOUR-KEY',
+    rpcUrl: 'https://rpc.sepolia.org',
     contractAddress: '0x...KYCVerifier',
+    signerProvider: signer,
   },
 });
 
-// Check KYC status
+// Check KYC status (read-only, no signing needed)
 const hasKYC = await client.hasValidKYC('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb');
 console.log('Has KYC:', hasKYC);
 
-// Get proof details
-const proofId = await client.getUserProofId(userAddress);
-const proof = await client.getProofFromChain(proofId);
-console.log('Public Claims:', proof.publicInputs);
+// Submit proof on-chain (signed inside the enclave)
+const txHash = await client.submitProofOnChain({
+  commitment: proof.commitment,
+  proof: proof.proof,
+  publicInputs: proof.publicInputs,
+});
 ```
 
 ### Convenience Methods (Quick Checks)

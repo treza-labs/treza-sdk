@@ -23,13 +23,6 @@ TypeScript SDK for interacting with TREZA's privacy-preserving KYC system and se
 
 ## Features
 
-### KYC Features
-- **Zero-Knowledge KYC** - Verify identity without exposing personal data
-- **Blockchain Integration** - Direct integration with KYCVerifier smart contracts  
-- **Convenience Methods** - Simple APIs for common KYC checks (age, country, document validity)
-- **Dual Verification** - API-based (fast) OR blockchain-based (trustless)
-- **Multi-Chain Support** - Ethereum, Sepolia, and compatible networks
-
 ### Enclave Platform Features
 - **Secure Enclave Deployment** - Deploy and manage AWS Nitro Enclaves with cryptographic attestation
 - **Lifecycle Management** - Full control over enclave state (deploy, pause, resume, terminate)
@@ -40,6 +33,19 @@ TypeScript SDK for interacting with TREZA's privacy-preserving KYC system and se
 - **GitHub Integration** - Connect enclaves directly to GitHub repositories
 - **Docker Support** - Search and deploy Docker Hub images
 - **API Key Management** - Fine-grained access control with permissions
+
+### Secure Key Management
+- **Enclave Signing** - Transaction signing inside hardware-isolated Nitro Enclaves (recommended)
+- **Pluggable Signers** - Swap between enclave, local, or browser wallet signing with one line
+- **No Key Exposure** - Private keys never leave the TEE in production
+- **Attestation Verification** - Cryptographic proof of enclave integrity before signing
+
+### KYC Features
+- **Zero-Knowledge KYC** - Verify identity without exposing personal data
+- **Blockchain Integration** - Direct integration with KYCVerifier smart contracts  
+- **Convenience Methods** - Simple APIs for common KYC checks (age, country, document validity)
+- **Dual Verification** - API-based (fast) OR blockchain-based (trustless)
+- **Multi-Chain Support** - Ethereum, Sepolia, and compatible networks
 
 ### Developer Experience
 - **TypeScript Support** - Full type safety and IntelliSense
@@ -73,27 +79,81 @@ WALLET_ADDRESS=0x...your-wallet-address
 SEPOLIA_RPC_URL=https://rpc.sepolia.org
 SEPOLIA_KYC_VERIFIER_ADDRESS=0xB1D98F688Fac29471D91234d9f8EbB37238Df6FA
 
-# For write operations (proof submission)
-PRIVATE_KEY=0x...your-private-key
+# Enclave ID for signing (production)
+TREZA_ENCLAVE_ID=enc_...your-enclave-id
 ```
 
 See [`.env.example`](./.env.example) for all available configuration options.
 
-### Basic Usage - KYC
+### Basic Usage - KYC with Enclave Signing (Recommended)
+
+In production, private keys are managed inside Treza Nitro Enclaves and never leave the hardware-isolated TEE. The SDK provides pluggable signers so you can swap between enclave signing, local keys, or browser wallets with one line of code.
 
 ```typescript
-import { TrezaKYCClient } from '@treza/sdk/kyc';
+import { TrezaClient, TrezaKYCClient, EnclaveSigner } from '@treza/sdk';
 
-// Initialize client
+// 1. Connect to the Treza platform
+const platform = new TrezaClient({
+  baseUrl: process.env.TREZA_PLATFORM_URL,
+});
+
+// 2. Create an EnclaveSigner (keys never leave the TEE)
+const signer = new EnclaveSigner(platform, {
+  enclaveId: process.env.TREZA_ENCLAVE_ID!,
+  verifyAttestation: true, // verify enclave integrity before signing
+});
+
+// 3. Initialize the KYC client with secure signing
 const client = new TrezaKYCClient({
-  apiUrl: process.env.TREZA_API_URL,
+  apiUrl: process.env.TREZA_API_URL!,
   blockchain: {
-    rpcUrl: process.env.SEPOLIA_RPC_URL,
-    contractAddress: process.env.SEPOLIA_KYC_VERIFIER_ADDRESS,
+    rpcUrl: process.env.SEPOLIA_RPC_URL!,
+    contractAddress: process.env.SEPOLIA_KYC_VERIFIER_ADDRESS!,
+    signerProvider: signer,
   },
 });
 
-// Check if user is an adult
+// Submit proof on-chain (signed inside the enclave)
+const txHash = await client.submitProofOnChain({
+  commitment: proof.commitment,
+  proof: proof.proof,
+  publicInputs: proof.publicInputs,
+});
+```
+
+#### Local Development (Demo Only)
+
+For local development and testing, you can use `LocalSigner` with a raw private key. **Do not use this in production.**
+
+```typescript
+import { TrezaKYCClient, LocalSigner } from '@treza/sdk';
+
+const client = new TrezaKYCClient({
+  apiUrl: 'http://localhost:3000/api',
+  blockchain: {
+    rpcUrl: 'http://localhost:8545',
+    contractAddress: '0x...',
+    signerProvider: new LocalSigner(process.env.PRIVATE_KEY!),
+  },
+});
+```
+
+#### Read-Only Usage (No Signing)
+
+Many KYC operations don't require signing at all:
+
+```typescript
+import { TrezaKYCClient } from '@treza/sdk';
+
+const client = new TrezaKYCClient({
+  apiUrl: process.env.TREZA_API_URL!,
+  blockchain: {
+    rpcUrl: process.env.SEPOLIA_RPC_URL!,
+    contractAddress: process.env.SEPOLIA_KYC_VERIFIER_ADDRESS!,
+  },
+});
+
+// Check if user is an adult (read-only, no signer needed)
 const isAdult = await client.isAdult(proofId);
 console.log('User is 18+:', isAdult);
 
@@ -115,9 +175,9 @@ const result = await client.meetsRequirements(proofId, {
 });
 
 if (result.meets) {
-  console.log('✅ User meets all requirements!');
+  console.log('User meets all requirements!');
 } else {
-  console.log('❌ Requirements not met:', result.reason);
+  console.log('Requirements not met:', result.reason);
 }
 ```
 
@@ -283,6 +343,69 @@ const proofId = await client.getUserProofId(userAddress);
 └─────────────┘  └─────────────────┘
 ```
 
+## Key Management & Signing
+
+The Treza SDK provides a pluggable signing architecture. Instead of storing private keys in `.env` files, you choose a `SignerProvider` that matches your environment:
+
+| Signer | Environment | How It Works |
+|--------|-------------|--------------|
+| `EnclaveSigner` | **Production** (recommended) | Keys are generated and stored inside a Treza Nitro Enclave. Signing requests go through the Platform API to the TEE. Keys never leave the enclave. |
+| `LocalSigner` | **Development/Testing** | Wraps a raw private key string. Emits a warning if used in production. |
+| `BrowserWalletSigner` | **Client-side dApps** | Delegates to MetaMask or any injected Web3 wallet. Prompts the user to sign. |
+
+### Signing Flow (EnclaveSigner)
+
+```
+Your App  -->  TrezaKYCClient  -->  EnclaveSigner  -->  Platform API  -->  Nitro Enclave
+                                                                              |
+                                                                     Signs transaction
+                                                                     (key never leaves TEE)
+                                                                              |
+Your App  <--  TrezaKYCClient  <--  EnclaveSigner  <--  Platform API  <--  Signed TX
+```
+
+### Using EnclaveSigner
+
+```typescript
+import { TrezaClient, EnclaveSigner, TrezaKYCClient } from '@treza/sdk';
+
+const platform = new TrezaClient();
+const signer = new EnclaveSigner(platform, {
+  enclaveId: 'enc_abc123',
+  verifyAttestation: true,  // verify TEE integrity before each sign
+});
+
+const client = new TrezaKYCClient({
+  apiUrl: 'https://api.trezalabs.com/api',
+  blockchain: {
+    rpcUrl: 'https://rpc.sepolia.org',
+    contractAddress: '0x...',
+    signerProvider: signer,
+  },
+});
+```
+
+### Custom Signers
+
+You can implement the `SignerProvider` interface to integrate any key management system (AWS KMS, HashiCorp Vault, hardware wallets, etc.):
+
+```typescript
+import { SignerProvider } from '@treza/sdk';
+import { ethers } from 'ethers';
+
+class MyCustomSigner implements SignerProvider {
+  readonly type = 'custom';
+
+  async getSigner(provider?: ethers.Provider): Promise<ethers.Signer> {
+    // Your custom signing logic here
+  }
+
+  async getAddress(): Promise<string> {
+    // Return the signing address
+  }
+}
+```
+
 ## API Reference
 
 ### TrezaClient
@@ -374,7 +497,8 @@ new TrezaKYCClient(config: TrezaKYCConfig)
 - `blockchain`: Blockchain configuration (optional)
   - `rpcUrl`: Ethereum RPC URL
   - `contractAddress`: KYCVerifier contract address
-  - `privateKey`: Private key for write operations (optional)
+  - `signerProvider`: A `SignerProvider` for secure key management (recommended)
+  - `privateKey`: *(deprecated)* Raw private key for write operations — use `signerProvider` instead
 
 #### Methods
 

@@ -14,6 +14,15 @@ export type {
   UserKYCStatus
 } from './kyc';
 
+// Signing Module exports
+export { EnclaveSigner, LocalSigner, BrowserWalletSigner } from './signing';
+export type {
+  SignerProvider,
+  EnclaveSignerConfig,
+  EnclaveSignResponse,
+  EnclaveSignMessageResponse
+} from './signing';
+
 // Type exports
 export {
   TrezaConfig,

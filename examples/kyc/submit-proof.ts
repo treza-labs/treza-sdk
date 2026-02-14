@@ -1,19 +1,26 @@
 /**
  * Example: Submit ZK Proof to Treza API and Blockchain
+ *
+ * This example uses LocalSigner for simplicity. In production, use EnclaveSigner.
+ * See enclave-signing.ts for the production-recommended approach.
  */
 
 import { TrezaKYCClient } from '../../src/kyc';
+import { LocalSigner } from '../../src/signing';
 import addresses from '../../src/contracts/addresses.json';
 
 async function main() {
-  // Initialize client
+  // Initialize client with LocalSigner (development only)
   const client = new TrezaKYCClient({
     apiUrl: 'https://api.treza.io',
     apiKey: process.env.TREZA_API_KEY,
     blockchain: {
       rpcUrl: process.env.RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/YOUR-API-KEY',
       contractAddress: addresses.sepolia.KYCVerifier,
-      privateKey: process.env.PRIVATE_KEY,
+      // Use LocalSigner for dev — see enclave-signing.ts for production
+      signerProvider: process.env.PRIVATE_KEY
+        ? new LocalSigner(process.env.PRIVATE_KEY)
+        : undefined,
     },
   });
 
