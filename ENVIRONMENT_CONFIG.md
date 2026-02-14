@@ -54,12 +54,15 @@ export SEPOLIA_KYC_VERIFIER_ADDRESS="0xB1D98F688Fac29471D91234d9f8EbB37238Df6FA"
 | `SEPOLIA_KYC_VERIFIER_ADDRESS` | ✅ Yes | `0xB1D98F...` | KYCVerifier contract |
 | `MAINNET_RPC_URL` | ⚠️ Optional | - | Ethereum mainnet RPC |
 | `MAINNET_KYC_VERIFIER_ADDRESS` | ⚠️ Optional | - | Mainnet contract |
-| `PRIVATE_KEY` | ⚠️ Optional | - | For write operations only |
+| `TREZA_PLATFORM_URL` | ⚠️ Optional | `https://app.trezalabs.com` | Treza Platform URL |
+| `TREZA_ENCLAVE_ID` | ⚠️ Optional | - | Enclave ID for EnclaveSigner (production) |
+| `PRIVATE_KEY` | ⚠️ Deprecated | - | For LocalSigner (dev only) |
 
 **⚠️ Security Warning:**
 - **NEVER** commit `.env` files to version control
 - **NEVER** share your `PRIVATE_KEY`
-- Only use `PRIVATE_KEY` for backend/server applications
+- In production, use `EnclaveSigner` instead of `PRIVATE_KEY` — keys never leave the enclave
+- `PRIVATE_KEY` should only be used with `LocalSigner` for local development
 
 ---
 
@@ -113,11 +116,54 @@ const client = new TrezaKYCClient({
 const isAdult = await client.isAdult(proofId); // Fast API call
 ```
 
-### 3. Write Operations (Advanced)
+### 3. Write Operations — Production (EnclaveSigner)
 
-⚠️ Submit proofs to blockchain  
-⚠️ Verify proofs on-chain  
-⚠️ Requires private key  
+✅ Submit proofs to blockchain  
+✅ Verify proofs on-chain  
+✅ Private keys never leave the enclave  
+
+**Required:**
+```bash
+TREZA_API_URL=https://api.trezalabs.com/api
+TREZA_PLATFORM_URL=https://app.trezalabs.com
+TREZA_ENCLAVE_ID=enc_...your-enclave-id
+SEPOLIA_RPC_URL=https://rpc.sepolia.org
+SEPOLIA_KYC_VERIFIER_ADDRESS=0xB1D98F688Fac29471D91234d9f8EbB37238Df6FA
+```
+
+**Example:**
+```typescript
+import { TrezaClient, TrezaKYCClient, EnclaveSigner } from '@treza/sdk';
+
+const platform = new TrezaClient({
+  baseUrl: process.env.TREZA_PLATFORM_URL,
+});
+
+const signer = new EnclaveSigner(platform, {
+  enclaveId: process.env.TREZA_ENCLAVE_ID!,
+  verifyAttestation: true,
+});
+
+const client = new TrezaKYCClient({
+  apiUrl: process.env.TREZA_API_URL!,
+  blockchain: {
+    rpcUrl: process.env.SEPOLIA_RPC_URL!,
+    contractAddress: process.env.SEPOLIA_KYC_VERIFIER_ADDRESS!,
+    signerProvider: signer,
+  },
+});
+
+const txHash = await client.submitProofOnChain({
+  commitment: '0x...',
+  proof: '0x...',
+  publicInputs: ['country:US', 'isAdult:true'],
+});
+```
+
+### 4. Write Operations — Local Dev (LocalSigner)
+
+⚠️ Development and testing only  
+⚠️ Do NOT use in production  
 
 **Required:**
 ```bash
@@ -129,23 +175,25 @@ PRIVATE_KEY=0x...your-private-key
 
 **Example:**
 ```typescript
+import { TrezaKYCClient, LocalSigner } from '@treza/sdk';
+
 const client = new TrezaKYCClient({
-  apiUrl: process.env.TREZA_API_URL,
+  apiUrl: process.env.TREZA_API_URL!,
   blockchain: {
-    rpcUrl: process.env.SEPOLIA_RPC_URL,
-    contractAddress: process.env.SEPOLIA_KYC_VERIFIER_ADDRESS,
-    privateKey: process.env.PRIVATE_KEY, // ⚠️ Server-side only!
+    rpcUrl: process.env.SEPOLIA_RPC_URL!,
+    contractAddress: process.env.SEPOLIA_KYC_VERIFIER_ADDRESS!,
+    signerProvider: new LocalSigner(process.env.PRIVATE_KEY!),
   },
 });
 
-const { proofId, txHash } = await client.submitProofOnChain({
+const txHash = await client.submitProofOnChain({
   commitment: '0x...',
   proof: '0x...',
   publicInputs: ['country:US', 'isAdult:true'],
 });
 ```
 
-### 4. Local Development with ngrok
+### 5. Local Development with ngrok
 
 For testing on physical iOS devices:
 
@@ -195,7 +243,13 @@ MAINNET_KYC_VERIFIER_ADDRESS=0x... # Not deployed yet
 ### TypeScript/JavaScript
 
 ```typescript
-import { TrezaKYCClient } from '@treza/sdk/kyc';
+import { TrezaClient, TrezaKYCClient, EnclaveSigner } from '@treza/sdk';
+
+// Production: EnclaveSigner (recommended)
+const platform = new TrezaClient({ baseUrl: process.env.TREZA_PLATFORM_URL });
+const signer = new EnclaveSigner(platform, {
+  enclaveId: process.env.TREZA_ENCLAVE_ID!,
+});
 
 const client = new TrezaKYCClient({
   apiUrl: process.env.TREZA_API_URL!,
@@ -203,7 +257,7 @@ const client = new TrezaKYCClient({
   blockchain: {
     rpcUrl: process.env.SEPOLIA_RPC_URL!,
     contractAddress: process.env.SEPOLIA_KYC_VERIFIER_ADDRESS!,
-    privateKey: process.env.PRIVATE_KEY,
+    signerProvider: signer,
   },
 });
 ```
@@ -242,15 +296,20 @@ function MyComponent() {
 
 ```typescript
 // lib/kyc-client.ts
-import { TrezaKYCClient } from '@treza/sdk/kyc';
+import { TrezaClient, TrezaKYCClient, EnclaveSigner } from '@treza/sdk';
 
 export function getKYCClient() {
+  const platform = new TrezaClient({ baseUrl: process.env.TREZA_PLATFORM_URL });
+  const signer = new EnclaveSigner(platform, {
+    enclaveId: process.env.TREZA_ENCLAVE_ID!,
+  });
+
   return new TrezaKYCClient({
     apiUrl: process.env.TREZA_API_URL!,
     blockchain: {
       rpcUrl: process.env.SEPOLIA_RPC_URL!,
       contractAddress: process.env.SEPOLIA_KYC_VERIFIER_ADDRESS!,
-      privateKey: process.env.PRIVATE_KEY, // Server-side only
+      signerProvider: signer,
     },
   });
 }
@@ -294,11 +353,13 @@ export SEPOLIA_KYC_VERIFIER_ADDRESS="0xB1D98F688Fac29471D91234d9f8EbB37238Df6FA"
 
 ### "No signer available" Error
 
-**Problem:** Trying to do write operations without `PRIVATE_KEY`
+**Problem:** Trying to do write operations without a signer configured
 
 **Solution:**
-- For read-only: Remove write operation calls
-- For write operations: Add `PRIVATE_KEY` to `.env`
+- For read-only: Remove write operation calls (no signer needed)
+- For production: Configure `EnclaveSigner` with `TREZA_ENCLAVE_ID`
+- For local dev: Configure `LocalSigner` with `PRIVATE_KEY`
+- See [Key Management & Signing](./README.md#key-management--signing) for setup
 
 ### ngrok URL Changes
 
