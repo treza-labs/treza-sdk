@@ -1,0 +1,54 @@
+{
+  "name": "@treza/mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for Treza Enclaves — lets AI agents manage TEEs, verify attestations, and sign transactions",
+  "keywords": [
+    "treza",
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "enclaves",
+    "tee",
+    "attestation",
+    "nitro-enclaves"
+  ],
+  "homepage": "https://trezalabs.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/treza-labs/treza-sdk.git",
+    "directory": "packages/mcp"
+  },
+  "license": "MIT",
+  "author": "TREZA Labs <hello@trezalabs.com>",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "treza-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc -w",
+    "clean": "rm -rf dist",
+    "dev": "tsc -w",
+    "start": "node dist/index.js",
+    "lint": "eslint src/**/*.ts --fix",
+    "lint:check": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "axios": "^1.7.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

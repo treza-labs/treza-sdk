@@ -9,6 +9,7 @@ TypeScript SDK for interacting with TREZA's privacy-preserving KYC system and se
 ## Table of Contents
 
 - [Features](#features)
+- [AI Agent Integration](#ai-agent-integration)
 - [Quick Start](#quick-start)
 - [Core Features](#core-features)
   - [KYC Features](#kyc-features)
@@ -47,12 +48,57 @@ TypeScript SDK for interacting with TREZA's privacy-preserving KYC system and se
 - **Dual Verification** - API-based (fast) OR blockchain-based (trustless)
 - **Multi-Chain Support** - Ethereum, Sepolia, and compatible networks
 
+### AI Agent Support
+- **MCP Server** - [`@treza/mcp`](./packages/mcp) for Claude, Cursor, and any MCP-compatible agent
+- **OpenAPI 3.1 Spec** - Machine-readable API schema for agent frameworks (LangChain, CrewAI, etc.)
+- **Agent Manifest** - Auto-discoverable capabilities at `/.well-known/ai-plugin.json`
+
 ### Developer Experience
 - **TypeScript Support** - Full type safety and IntelliSense
 - **Easy Integration** - Works with any TypeScript/JavaScript project
 - **Code Generation** - Auto-generate integration snippets in multiple languages
 - **No Authentication Required** - Open API protected by rate limiting (KYC endpoints)
 - **Secure by Design** - No personal data storage, cryptographic proofs only
+
+## AI Agent Integration
+
+Treza enclaves are designed to work with AI agents out of the box. Three integration paths are available:
+
+### MCP Server (Recommended for AI Agents)
+
+The [`@treza/mcp`](./packages/mcp) package exposes all Treza operations as MCP tools. Add it to any MCP-compatible client:
+
+```json
+{
+  "mcpServers": {
+    "treza": {
+      "command": "npx",
+      "args": ["@treza/mcp"],
+      "env": {
+        "TREZA_BASE_URL": "https://app.trezalabs.com"
+      }
+    }
+  }
+}
+```
+
+This gives agents access to 16 tools (enclave management, attestation verification, task scheduling, API key management) and 4 browsable resources.
+
+### OpenAPI Spec (For Agent Frameworks)
+
+The full API is documented as an OpenAPI 3.1 spec, compatible with any agent framework that can ingest tool schemas:
+
+```
+https://app.trezalabs.com/.well-known/openapi.json
+```
+
+### Agent Manifest (For Discovery)
+
+A machine-readable manifest describing Treza's capabilities:
+
+```
+https://app.trezalabs.com/.well-known/ai-plugin.json
+```
 
 ## Quick Start
 
@@ -930,11 +976,22 @@ npx tsx examples/basic-usage.ts
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
+## Packages
+
+| Package | Description | npm |
+|---|---|---|
+| [`@treza/sdk`](./packages/core) | Core SDK for enclaves, KYC, and signing | [![npm](https://badge.fury.io/js/%40treza%2Fsdk.svg)](https://www.npmjs.com/package/@treza/sdk) |
+| [`@treza/react`](./packages/react) | React components and hooks | [![npm](https://badge.fury.io/js/%40treza%2Freact.svg)](https://www.npmjs.com/package/@treza/react) |
+| [`@treza/mcp`](./packages/mcp) | MCP server for AI agents | [![npm](https://badge.fury.io/js/%40treza%2Fmcp.svg)](https://www.npmjs.com/package/@treza/mcp) |
+
 ## Links
 
 - **GitHub**: [github.com/treza-labs/treza-sdk](https://github.com/treza-labs/treza-sdk)
 - **npm**: [@treza/sdk](https://www.npmjs.com/package/@treza/sdk)
+- **MCP Server**: [@treza/mcp](https://www.npmjs.com/package/@treza/mcp)
+- **OpenAPI Spec**: [app.trezalabs.com/.well-known/openapi.json](https://app.trezalabs.com/.well-known/openapi.json)
 - **Smart Contracts**: [treza-contracts](https://github.com/treza-labs/treza-contracts)
+- **CLI**: [treza-cli](https://github.com/treza-labs/treza-cli)
 - **Mobile App**: [treza-mobile](https://github.com/treza-labs/treza-mobile)
 - **Backend API**: [treza-app](https://github.com/treza-labs/treza-app)
 
