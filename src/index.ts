@@ -23,6 +23,20 @@ export type {
   EnclaveSignMessageResponse
 } from './signing';
 
+// x402 Payment Integration exports
+export {
+  createEnclaveAccount,
+  createEnclaveX402Client,
+  createEnclaveFetch,
+  discoverPayableServices,
+} from './x402';
+export type {
+  ViemAccount,
+  EnclaveX402Config,
+  EnclaveX402ClientResult,
+  X402PaymentReceipt,
+} from './x402';
+
 // Type exports
 export {
   TrezaConfig,

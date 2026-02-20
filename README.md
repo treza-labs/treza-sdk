@@ -10,6 +10,7 @@ TypeScript SDK for interacting with TREZA's privacy-preserving KYC system and se
 
 - [Features](#features)
 - [AI Agent Integration](#ai-agent-integration)
+- [x402 Payment Integration](#x402-payment-integration)
 - [Quick Start](#quick-start)
 - [Core Features](#core-features)
   - [KYC Features](#kyc-features)
@@ -40,6 +41,12 @@ TypeScript SDK for interacting with TREZA's privacy-preserving KYC system and se
 - **Pluggable Signers** - Swap between enclave, local, or browser wallet signing with one line
 - **No Key Exposure** - Private keys never leave the TEE in production
 - **Attestation Verification** - Cryptographic proof of enclave integrity before signing
+
+### x402 Payments
+- **Enclave as Payment Wallet** - Use TEE-held keys to sign x402 payment headers
+- **Automatic Payments** - Wrap `fetch` or `axios` to handle 402 responses transparently
+- **Bazaar Discovery** - Find x402-payable services programmatically
+- **AI Agent Commerce** - Agents can autonomously pay for APIs using enclave-managed funds
 
 ### KYC Features
 - **Zero-Knowledge KYC** - Verify identity without exposing personal data
@@ -98,6 +105,82 @@ A machine-readable manifest describing Treza's capabilities:
 
 ```
 https://app.trezalabs.com/.well-known/ai-plugin.json
+```
+
+## x402 Payment Integration
+
+Use a Treza Enclave as an [x402](https://docs.x402.org) payment wallet. Private keys sign payment headers inside the TEE — they never leave the hardware boundary. This enables AI agents and programmatic clients to automatically pay for x402-gated APIs using enclave-managed funds.
+
+### Install Dependencies
+
+```bash
+npm install @treza/sdk ethers @x402/fetch @x402/core @x402/evm
+```
+
+### Automatic Payments with Fetch
+
+```typescript
+import { TrezaClient, createEnclaveFetch } from '@treza/sdk';
+
+const client = new TrezaClient({
+  baseUrl: 'https://app.trezalabs.com',
+});
+
+// Wrap fetch — 402 responses are paid automatically
+const paidFetch = await createEnclaveFetch(client, {
+  enclaveId: 'enc_abc123',
+  verifyAttestation: true, // verify enclave integrity before each payment
+});
+
+const response = await paidFetch('https://api.example.com/paid-endpoint');
+const data = await response.json();
+```
+
+### Using the x402 Client Directly
+
+```typescript
+import { TrezaClient, createEnclaveX402Client } from '@treza/sdk';
+import { wrapFetchWithPayment } from '@x402/fetch';
+
+const client = new TrezaClient({ baseUrl: 'https://app.trezalabs.com' });
+const { x402, account } = await createEnclaveX402Client(client, {
+  enclaveId: 'enc_abc123',
+});
+
+console.log('Payment wallet:', account.address);
+
+// Use x402 client with any wrapper
+const paidFetch = wrapFetchWithPayment(fetch, x402);
+```
+
+### Custom viem Account
+
+For advanced use cases, create a viem-compatible account directly:
+
+```typescript
+import { TrezaClient, createEnclaveAccount } from '@treza/sdk';
+import { x402Client } from '@x402/core/client';
+import { registerExactEvmScheme } from '@x402/evm/exact/client';
+
+const client = new TrezaClient({ baseUrl: 'https://app.trezalabs.com' });
+const account = await createEnclaveAccount(client, { enclaveId: 'enc_abc123' });
+
+// Register with x402 manually
+const x402 = new x402Client();
+registerExactEvmScheme(x402, { signer: account });
+```
+
+### Discover Payable Services
+
+```typescript
+import { discoverPayableServices } from '@treza/sdk';
+
+const services = await discoverPayableServices({
+  maxPrice: '0.01',
+  network: 'eip155:8453', // Base mainnet
+});
+
+console.log('Available services:', services.length);
 ```
 
 ## Quick Start
