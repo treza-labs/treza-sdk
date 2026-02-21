@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.treza-labs/treza",
-  "description": "Deploy and manage secure enclaves (TEEs) with hardware attestation, x402 payments, and blockchain signing — all from AI agents.",
+  "description": "Manage secure enclaves (TEEs) with attestation, payments, and signing for AI agents.",
   "repository": {
     "url": "https://github.com/treza-labs/treza-sdk",
     "source": "github"
