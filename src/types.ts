@@ -19,7 +19,9 @@ export interface Enclave {
   /** Enclave description */
   description: string;
   /** Current enclave status */
-  status: 'PENDING_DEPLOY' | 'DEPLOYING' | 'DEPLOYED' | 'PAUSING' | 'PAUSED' | 'RESUMING' | 'PENDING_DESTROY' | 'DESTROYING' | 'DESTROYED' | 'FAILED';
+  status: 'PENDING_BUILD' | 'BUILDING' | 'BUILD_FAILED' | 'PENDING_DEPLOY' | 'DEPLOYING' | 'DEPLOYED' | 'PAUSING' | 'PAUSED' | 'RESUMING' | 'PENDING_DESTROY' | 'DESTROYING' | 'DESTROYED' | 'FAILED';
+  /** Deployment source type */
+  sourceType?: 'registry' | 'github' | 'private-registry';
   /** AWS region where enclave is deployed */
   region: string;
   /** Associated wallet address */
@@ -34,6 +36,12 @@ export interface Enclave {
   updatedAt: string;
   /** GitHub connection details */
   githubConnection?: GitHubConnection;
+  /** CodeBuild build ID (GitHub source only) */
+  buildId?: string;
+  /** CodeBuild status (GitHub source only) */
+  buildStatus?: string;
+  /** CloudWatch log group for build logs (GitHub source only) */
+  buildLogGroup?: string;
   /** Error message if enclave failed */
   error_message?: string;
 }
@@ -84,10 +92,18 @@ export interface CreateEnclaveRequest {
   walletAddress: string;
   /** Provider ID for enclave deployment */
   providerId: string;
+  /** Deployment source type */
+  sourceType?: 'registry' | 'github' | 'private-registry';
   /** Optional provider-specific configuration */
   providerConfig?: Record<string, any>;
-  /** Optional GitHub connection */
+  /** Optional GitHub connection (required when sourceType is 'github') */
   githubConnection?: GitHubConnection;
+  /** Private registry URL (required when sourceType is 'private-registry') */
+  privateRegistryUrl?: string;
+  /** Private registry username */
+  privateRegistryUsername?: string;
+  /** Private registry password */
+  privateRegistryPassword?: string;
 }
 
 /**
@@ -106,6 +122,8 @@ export interface UpdateEnclaveRequest {
   region?: string;
   /** Optional updated provider ID */
   providerId?: string;
+  /** Optional updated deployment source type */
+  sourceType?: 'registry' | 'github' | 'private-registry';
   /** Optional updated provider configuration */
   providerConfig?: Record<string, any>;
   /** Optional updated GitHub connection */
