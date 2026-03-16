@@ -320,17 +320,52 @@ const client = new TrezaClient({
   baseUrl: process.env.TREZA_PLATFORM_URL
 });
 
-// Create a secure enclave
+// Create a secure enclave from a Docker image
 const enclave = await client.createEnclave({
   name: 'My Secure Enclave',
   description: 'Privacy-preserving computation',
-  region: 'us-east-1',
+  region: 'us-west-2',
   walletAddress: process.env.WALLET_ADDRESS,
-  providerId: 'aws-nitro-enclave'
+  providerId: 'aws-nitro',
+  sourceType: 'registry',
+  providerConfig: {
+    sourceType: 'registry',
+    dockerImage: 'nginx:alpine',
+    instanceType: 'm6i.xlarge',
+    cpuCount: '2',
+    memoryMiB: '1024',
+    workloadType: 'service',
+  },
+});
+
+// Or deploy directly from a GitHub repository (Treza auto-builds the image)
+const enclaveFromGitHub = await client.createEnclave({
+  name: 'My GitHub Enclave',
+  description: 'Built from source',
+  region: 'us-west-2',
+  walletAddress: process.env.WALLET_ADDRESS,
+  providerId: 'aws-nitro',
+  sourceType: 'github',
+  providerConfig: {
+    sourceType: 'github',
+    instanceType: 'm6i.xlarge',
+    cpuCount: '2',
+    memoryMiB: '1024',
+    workloadType: 'service',
+  },
+  githubConnection: {
+    isConnected: true,
+    username: 'my-org',
+    selectedRepo: 'my-org/my-repo',
+    selectedBranch: 'main',
+    accessToken: process.env.GITHUB_TOKEN, // required for private repos
+  },
 });
 
 console.log('Enclave created:', enclave.id);
+// Status progresses: PENDING_BUILD → BUILDING → PENDING_DEPLOY → DEPLOYING → DEPLOYED
 console.log('Status:', enclave.status);
+console.log('Build ID:', enclaveFromGitHub.buildId);
 
 // Get attestation and verify
 const attestation = await client.getAttestation(enclave.id);
@@ -725,23 +760,55 @@ const WALLET_ADDRESS = '0x...'; // Your wallet address
 ```typescript
 // Get available providers
 const providers = await client.getProviders();
-const awsProvider = providers.find(p => p.id === 'aws-nitro-enclave');
+const awsProvider = providers.find(p => p.id === 'aws-nitro');
 
-// Create a new enclave
+// Create enclave from a Docker image (registry)
 const enclave = await client.createEnclave({
   name: 'Trading Bot Enclave',
   description: 'Secure enclave for automated trading',
-  region: 'us-east-1',
+  region: 'us-west-2',
   walletAddress: WALLET_ADDRESS,
-  providerId: awsProvider.id,
+  providerId: 'aws-nitro',
+  sourceType: 'registry',
   providerConfig: {
-    instanceType: 't3.small',
-    dockerImage: 'myapp:latest'
+    sourceType: 'registry',
+    dockerImage: 'myorg/trading-bot:latest',
+    instanceType: 'm6i.xlarge',
+    cpuCount: '2',
+    memoryMiB: '1024',
+    workloadType: 'service',
+  }
+});
+
+// Create enclave from a GitHub repo (Treza auto-builds the Docker image)
+const enclaveFromGit = await client.createEnclave({
+  name: 'API Service Enclave',
+  description: 'Built directly from GitHub',
+  region: 'us-west-2',
+  walletAddress: WALLET_ADDRESS,
+  providerId: 'aws-nitro',
+  sourceType: 'github',
+  providerConfig: {
+    sourceType: 'github',
+    instanceType: 'm6i.xlarge',
+    cpuCount: '2',
+    memoryMiB: '1024',
+    workloadType: 'service',
+  },
+  githubConnection: {
+    isConnected: true,
+    username: 'my-org',
+    selectedRepo: 'my-org/my-api',
+    selectedBranch: 'main',
+    accessToken: process.env.GITHUB_TOKEN,
   }
 });
 
 console.log('Enclave created:', enclave.id);
-console.log('Status:', enclave.status); // PENDING_DEPLOY -> DEPLOYING -> DEPLOYED
+// For registry source:  PENDING_DEPLOY → DEPLOYING → DEPLOYED
+// For GitHub source:    PENDING_BUILD → BUILDING → PENDING_DEPLOY → DEPLOYING → DEPLOYED
+console.log('Status:', enclave.status);
+console.log('Build ID:', enclaveFromGit.buildId); // CodeBuild job ID (GitHub source only)
 ```
 
 #### List and Get Enclaves
