@@ -20,6 +20,12 @@ Core SDK for the **Treza Platform** - privacy-preserving KYC verification and se
 - **Lifecycle Management** - Deploy, pause, resume, terminate enclaves
 - **Task Scheduling** - Automated task execution within enclaves
 
+### PII Redaction
+- **Direct Redaction** - Strip PII from any text with a single call (`redactText`)
+- **OpenAI-Compatible Proxy** - Redact chat messages before they reach your LLM (`redactChatCompletions`)
+- **API-Key Auth** - Programmatic access as an alternative to the hosted redaction proxy
+- **Audit Log & Attestation** - Entity-count audit trail and TEE attestation summaries
+
 ## Installation
 
 ```bash
@@ -136,6 +142,49 @@ console.log('Is Valid:', verification.isValid);
 console.log('Compliance:', verification.complianceChecks);
 ```
 
+### PII Redaction
+
+Redact PII programmatically with an API key — the alternative to routing traffic
+through a hosted redaction proxy. Create a Treza API key with the `redact:run`
+permission (and `redact:proxy` / `redact:log` for the proxy and audit endpoints)
+and pass it to the client.
+
+```typescript
+import { TrezaClient } from '@treza/sdk';
+
+const client = new TrezaClient({
+  apiKey: process.env.TREZA_API_KEY, // treza_live_...
+});
+
+// 1. Direct redaction — strip PII from any text. The original is never stored.
+const result = await client.redactText('Email john@example.com about the meeting');
+console.log(result.redacted); // "Email [EMAIL_1] about the meeting"
+console.log(result.entities); // [{ type: 'EMAIL', placeholder: '[EMAIL_1]', start: 6, end: 15 }]
+console.log(result.mode);     // 'standard' | 'tee'
+
+// 2. OpenAI-compatible proxy — message content is redacted before it is
+//    forwarded to the upstream provider. `data` is the upstream response verbatim.
+const chat = await client.redactChatCompletions(
+  {
+    model: 'gpt-4o',
+    messages: [{ role: 'user', content: 'Email john@example.com about the invoice' }],
+  },
+  { modelKey: process.env.OPENAI_API_KEY, rehydrate: true }
+);
+console.log(chat.data.choices[0].message.content);
+console.log(chat.rehydration); // { '[EMAIL_1]': 'john@example.com' } — restore placeholders client-side
+
+// 3. Audit log (entity counts only — never the text itself).
+const { entries } = await client.getRedactionLog({ limit: 50 });
+
+// 4. Redaction enclave attestation (Enterprise / TEE plans).
+const attestation = await client.getRedactionAttestation();
+console.log('Attested:', attestation.attested);
+```
+
+> Requires an API key. Calling these methods without `apiKey` throws a
+> `TrezaSdkError` with code `MISSING_API_KEY`.
+
 ## API Reference
 
 ### TrezaKYCClient
@@ -166,12 +215,24 @@ Enclave management client.
 | `terminateEnclave(enclaveId, walletAddress)` | Terminate enclave |
 | `getEnclaveLogs(enclaveId, logType?, limit?)` | Get enclave logs |
 
+#### PII Redaction (requires `apiKey`)
+
+| Method | Permission | Description |
+|--------|------------|-------------|
+| `redactText(text)` | `redact:run` | Redact PII from a string; returns redacted text + entities |
+| `redactChatCompletions(request, options?)` | `redact:proxy` | OpenAI-compatible chat completions with PII redacted before forwarding |
+| `getRedactionLog(options?)` | `redact:log` | Read the redaction audit log (entity counts only) |
+| `getRedactionAttestation()` | `redact:run` | Get the redaction enclave attestation summary (TEE plans) |
+
 ## Environment Variables
 
 ```bash
 # API Configuration
 TREZA_API_URL=https://api.trezalabs.com/api
 TREZA_PLATFORM_URL=https://app.trezalabs.com
+
+# API key for PII redaction and other API-key-authenticated endpoints
+TREZA_API_KEY=treza_live_...
 
 # Blockchain (for KYC)
 SEPOLIA_RPC_URL=https://rpc.sepolia.org

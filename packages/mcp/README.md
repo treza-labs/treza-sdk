@@ -38,6 +38,8 @@ treza-mcp
 |---|---|---|
 | `TREZA_BASE_URL` | `https://app.trezalabs.com` | Treza Platform API URL |
 | `TREZA_TIMEOUT` | `30000` | Request timeout in milliseconds |
+| `TREZA_API_KEY` | — | API key (`treza_live_...`) for authenticated tools like `treza_redact_text` and `treza_pii_audit_query` |
+| `TREZA_ACCOUNT` | — | Optional tenant account the API key belongs to |
 
 ## Available Tools
 
@@ -71,6 +73,16 @@ treza-mcp
 | `treza_create_task` | Create a cron-scheduled task in an enclave |
 | `treza_list_api_keys` | List scoped API keys |
 | `treza_create_api_key` | Create a new API key with specific permissions |
+
+### PII & Redaction
+
+| Tool | Description |
+|---|---|
+| `treza_redact_text` | Redact PII from a text string via the redaction enclave; returns redacted text, detected entities, and mode (requires `TREZA_API_KEY` with `redact:run`) |
+| `treza_redact_chat_completions` | OpenAI-compatible chat completion with PII redacted before forwarding upstream; returns the provider response, request id, mode, and optional rehydration map (requires `TREZA_API_KEY` with `redact:proxy`) |
+| `treza_pii_scan` | Heuristically classify which fields in a JSON payload contain PII |
+| `treza_pii_workflow_check` | Audit a workflow definition for where PII flows in, is stripped, or leaks |
+| `treza_pii_audit_query` | Query the PII audit log for past workflow runs (requires `TREZA_API_KEY`) |
 
 ## MCP Resources
 

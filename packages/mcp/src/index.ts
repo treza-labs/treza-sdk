@@ -9,15 +9,20 @@ import { RESOURCE_TEMPLATES, handleResourceRead } from './resources';
 
 const TREZA_BASE_URL = process.env.TREZA_BASE_URL || 'https://app.trezalabs.com';
 const TREZA_TIMEOUT = parseInt(process.env.TREZA_TIMEOUT || '30000', 10);
+// Authenticated endpoints (e.g. /api/pii/audit) need an API key + account
+const TREZA_API_KEY = process.env.TREZA_API_KEY;
+const TREZA_ACCOUNT = process.env.TREZA_ACCOUNT || process.env.TREZA_WALLET;
 
 const client = new TrezaClient({
   baseUrl: TREZA_BASE_URL,
   timeout: TREZA_TIMEOUT,
+  apiKey: TREZA_API_KEY,
+  account: TREZA_ACCOUNT,
 });
 
 const server = new McpServer({
   name: 'treza-enclaves',
-  version: '0.1.0',
+  version: '0.2.0',
 });
 
 // ─── Register Tools ─────────────────────────────────────────────────────────

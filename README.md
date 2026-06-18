@@ -55,6 +55,12 @@ TypeScript SDK for interacting with TREZA's privacy-preserving KYC system and se
 - **Dual Verification** - API-based (fast) OR blockchain-based (trustless)
 - **Multi-Chain Support** - Ethereum, Sepolia, and compatible networks
 
+### PII Redaction
+- **Direct Redaction** - Strip PII from any text with one call (`redactText`)
+- **OpenAI-Compatible Proxy** - Redact chat messages before they reach your LLM (`redactChatCompletions`)
+- **API-Key Auth** - Programmatic access as an alternative to the hosted redaction proxy
+- **Audit & Attestation** - Entity-count audit log and TEE attestation summaries
+
 ### AI Agent Support
 - **MCP Server** - [`@treza/mcp`](./packages/mcp) for Claude, Cursor, and any MCP-compatible agent
 - **OpenAPI 3.1 Spec** - Machine-readable API schema for agent frameworks (LangChain, CrewAI, etc.)
@@ -585,6 +591,7 @@ new TrezaClient(config?: TrezaConfig)
 **Config Options:**
 - `baseUrl`: Base API URL (default: `https://app.trezalabs.com`)
 - `timeout`: Request timeout in milliseconds (default: `30000`)
+- `apiKey`: Treza API key (`treza_live_...`). Sent as `Authorization: Bearer <apiKey>`; required for PII redaction methods.
 
 #### Enclave Methods
 
@@ -642,6 +649,26 @@ new TrezaClient(config?: TrezaConfig)
 
 - `searchDockerImages(query)` - Search Docker Hub
 - `getDockerTags(repository)` - Get available tags for image
+
+#### PII Redaction Methods
+
+Require the client to be constructed with an `apiKey`. The key must carry the
+matching `redact:*` permission. These are the programmatic alternative to the
+hosted redaction proxy.
+
+- `redactText(text)` - Redact PII from a string; returns redacted text + entities (`redact:run`)
+- `redactChatCompletions(request, options?)` - OpenAI-compatible chat completions with PII redacted before forwarding upstream (`redact:proxy`)
+- `getRedactionLog(options?)` - Read the redaction audit log; entity counts only, never text (`redact:log`)
+- `getRedactionAttestation()` - Get the redaction enclave attestation summary, TEE plans (`redact:run`)
+
+```typescript
+const client = new TrezaClient({ apiKey: process.env.TREZA_API_KEY });
+
+const { redacted, entities } = await client.redactText(
+  'Email john@example.com about the meeting'
+);
+// redacted: "Email [EMAIL_1] about the meeting"
+```
 
 ---
 

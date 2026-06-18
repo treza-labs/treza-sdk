@@ -105,6 +105,48 @@ export const createApiKeySchema = z.object({
   walletAddress: z.string().describe('Wallet address for authorization'),
 });
 
+// ─── PII Tracking ────────────────────────────────────────────────────────────
+
+export const piiScanSchema = z.object({
+  payload: z.record(z.unknown()).describe('The JSON object (agent context or step input) to scan for PII fields'),
+  customPIIFields: z.array(z.string()).optional().describe('Additional field names to treat as PII beyond the built-in heuristics (e.g. ["employeeId", "taxId"])'),
+});
+
+export const piiWorkflowCheckSchema = z.object({
+  workflow: z.object({
+    id: z.string().describe('Workflow identifier'),
+    name: z.string().describe('Human-readable workflow name'),
+    steps: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      requiresPII: z.array(z.string()).describe('PII field names this step is allowed to receive'),
+    })).describe('Ordered list of workflow steps with their PII declarations'),
+  }).describe('Workflow definition to analyse'),
+  initialPayload: z.record(z.unknown()).optional().describe('The data object that will be passed into the first step, used to show which fields are affected'),
+});
+
+export const redactTextSchema = z.object({
+  text: z.string().describe('The text to redact. PII is detected and replaced with typed placeholders (e.g. [EMAIL_1]).'),
+});
+
+export const redactChatCompletionsSchema = z.object({
+  messages: z.array(z.object({
+    role: z.string().describe('Message role (e.g. "system", "user", "assistant")'),
+    content: z.string().describe('Message content; PII is redacted before forwarding upstream'),
+  })).describe('OpenAI-style chat messages'),
+  model: z.string().default('gpt-4o-mini').describe('Upstream model name'),
+  modelKey: z.string().optional().describe('Upstream provider API key (x-model-key). Omit when the selected proxy stores one.'),
+  proxyId: z.string().optional().describe('Configured redaction proxy id (x-treza-proxy) carrying the upstream URL, stored key, and policy'),
+  rehydrate: z.boolean().optional().describe('When true, also return the placeholder → original map so values can be restored in the response'),
+});
+
+export const piiAuditQuerySchema = z.object({
+  workflowId: z.string().optional().describe('Filter events by workflow ID'),
+  walletAddress: z.string().optional().describe('Filter events by wallet address'),
+  violationsOnly: z.boolean().optional().describe('If true, return only events where PII flowed into a step that declared requiresPII: []'),
+  limit: z.number().optional().describe('Maximum number of events to return (default 50, max 500)'),
+});
+
 // ─── Tool Definitions ───────────────────────────────────────────────────────
 
 export interface ToolDefinition {
@@ -193,5 +235,30 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: 'treza_create_api_key',
     description: 'Create a new scoped API key for programmatic access to the Treza platform. Returns the key only once — store it securely.',
     schema: createApiKeySchema,
+  },
+  {
+    name: 'treza_pii_scan',
+    description: 'Scan a JSON payload for fields that likely contain Personally Identifiable Information (PII). Uses built-in heuristics (name, email, dob, ssn, address, passport, etc.) plus any custom fields you supply. Returns a classified field list and a risk summary. Use this before passing context to a workflow step to understand what sensitive data is present.',
+    schema: piiScanSchema,
+  },
+  {
+    name: 'treza_pii_workflow_check',
+    description: 'Analyse a full workflow definition and report which steps receive PII, which strip it, and flag any steps where PII would flow in despite the step declaring requiresPII: []. Use this to audit a workflow design before running it, or to document your data-flow for compliance purposes.',
+    schema: piiWorkflowCheckSchema,
+  },
+  {
+    name: 'treza_redact_text',
+    description: 'Redact PII from a text string using the Treza redaction enclave. Returns the redacted text (PII replaced with typed placeholders like [EMAIL_1]), the detected entities, and the redaction mode (tee/standard). The original text is never stored or forwarded. Use this before sending agent context to an external LLM or storing it. Requires TREZA_API_KEY with the redact:run permission.',
+    schema: redactTextSchema,
+  },
+  {
+    name: 'treza_redact_chat_completions',
+    description: 'OpenAI-compatible chat completion with PII redacted before the prompt is forwarded to the upstream model provider. Message content is stripped of PII, sent upstream, and the provider response is returned verbatim along with the Treza request id and mode. Pass rehydrate:true to also get the placeholder → original map so you can restore values in the response. Provide either modelKey (upstream key) or proxyId (a configured proxy that stores one). Requires TREZA_API_KEY with the redact:proxy permission.',
+    schema: redactChatCompletionsSchema,
+  },
+  {
+    name: 'treza_pii_audit_query',
+    description: 'Query the PII audit log for past workflow runs. Returns PIIAccessEvent records showing which PII fields were present, allowed, and stripped at each step boundary. Filter by workflowId, walletAddress, or show only violation events where PII leaked into a step that should not have received it.',
+    schema: piiAuditQuerySchema,
   },
 ];

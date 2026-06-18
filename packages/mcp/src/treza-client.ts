@@ -3,6 +3,10 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 export interface TrezaConfig {
   baseUrl?: string;
   timeout?: number;
+  /** Treza API key (treza_live_... / treza_test_...) — required for authenticated endpoints like /api/pii/audit. */
+  apiKey?: string;
+  /** Tenant account the API key belongs to; sent as the x-treza-account header. */
+  account?: string;
 }
 
 export class TrezaSdkError extends Error {
@@ -25,10 +29,14 @@ export class TrezaClient {
   private client: AxiosInstance;
 
   constructor(config: TrezaConfig = {}) {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`;
+    if (config.account) headers['x-treza-account'] = config.account;
+
     this.client = axios.create({
       baseURL: config.baseUrl || 'https://app.trezalabs.com',
       timeout: config.timeout || 30000,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
     });
 
     this.client.interceptors.response.use(
@@ -137,5 +145,72 @@ export class TrezaClient {
   async createApiKey(request: Record<string, unknown>) {
     const r = await this.client.post('/api/api-keys', request);
     return r.data.apiKey;
+  }
+
+  // ── PII Redaction ──────────────────────────────────────────────────────────
+  /**
+   * Redact PII from a text string via the redaction enclave (`POST /api/redact/run`).
+   * Requires an API key with the `redact:run` permission. The original text is
+   * never stored or forwarded.
+   */
+  async redactText(text: string) {
+    const r = await this.client.post('/api/redact/run', { text });
+    return r.data;
+  }
+
+  /**
+   * OpenAI-compatible chat completions with PII redacted before forwarding
+   * upstream (`POST /api/redact/chat/completions`). Requires an API key with the
+   * `redact:proxy` permission and either a stored proxy key (via `proxyId`) or an
+   * upstream `modelKey`. Streaming is not supported here. Returns the upstream
+   * response body plus the Treza request id, mode, and (optional) rehydration map.
+   */
+  async redactChatCompletions(
+    request: Record<string, unknown>,
+    options: { modelKey?: string; proxyId?: string; rehydrate?: boolean } = {},
+  ) {
+    const headers: Record<string, string> = {};
+    if (options.modelKey) headers['x-model-key'] = options.modelKey;
+    if (options.proxyId) headers['x-treza-proxy'] = options.proxyId;
+    if (options.rehydrate) headers['x-treza-rehydrate'] = '1';
+
+    const r = await this.client.post(
+      '/api/redact/chat/completions',
+      { ...request, stream: false },
+      { headers },
+    );
+
+    let rehydration: Record<string, string> | undefined;
+    const rehydrationHeader = r.headers['x-treza-rehydration'];
+    if (typeof rehydrationHeader === 'string' && rehydrationHeader) {
+      try {
+        rehydration = JSON.parse(rehydrationHeader);
+      } catch {
+        rehydration = undefined;
+      }
+    }
+
+    return {
+      data: r.data,
+      requestId: (r.headers['x-treza-request-id'] as string) || '',
+      mode: (r.headers['x-treza-mode'] as string) || 'standard',
+      ...(rehydration ? { rehydration } : {}),
+    };
+  }
+
+  // ── PII Audit ────────────────────────────────────────────────────────────
+  async queryPIIAudit(params: {
+    workflowId?: string;
+    walletAddress?: string;
+    violations?: boolean;
+    limit?: number;
+  }) {
+    const r = await this.client.get('/api/pii/audit', { params: {
+      ...(params.workflowId && { workflowId: params.workflowId }),
+      ...(params.walletAddress && { walletAddress: params.walletAddress }),
+      ...(params.violations && { violations: 'true' }),
+      limit: params.limit ?? 50,
+    }});
+    return r.data;
   }
 }

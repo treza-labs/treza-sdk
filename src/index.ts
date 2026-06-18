@@ -82,10 +82,23 @@ export {
   VerificationRequest,
   VerificationResult,
   VerificationStatus,
+  RedactEntity,
+  RedactTextResponse,
+  RedactionAttestation,
+  RedactionLogEntry,
+  RedactionLogResponse,
+  RedactionLogOptions,
+  RedactChatMessage,
+  RedactChatCompletionsRequest,
+  RedactChatCompletionsOptions,
+  RedactChatCompletionsResponse,
   ApiError,
   TrezaSdkError
 } from './types';
 
+/** SDK version string (kept for backward compatibility with older imports). */
+export const VERSION = '1.3.0';
+
 // Re-export the main client class as default
 import { TrezaClient } from './client';
-export default TrezaClient; 
+export default TrezaClient;

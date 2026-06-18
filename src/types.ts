@@ -6,6 +6,14 @@ export interface TrezaConfig {
   baseUrl?: string;
   /** Request timeout in milliseconds (defaults to 30000) */
   timeout?: number;
+  /**
+   * Treza API key (`treza_live_...`). Sent as `Authorization: Bearer <apiKey>`.
+   * Required for API-key-authenticated endpoints such as PII redaction
+   * (`redactText`, `redactChatCompletions`, `getRedactionLog`,
+   * `getRedactionAttestation`). The key's `permissions` must include the
+   * relevant `redact:*` scope.
+   */
+  apiKey?: string;
 }
 
 /**
@@ -674,6 +682,171 @@ export interface VerificationStatus {
   lastVerified: string | null;
   /** Trust level */
   trustLevel: 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
+}
+
+// ===== PII REDACTION =====
+
+/**
+ * A PII entity detected and replaced during redaction.
+ */
+export interface RedactEntity {
+  /** Entity type (e.g. "EMAIL", "PHONE", "SSN", "CREDIT_CARD", "NAME"). */
+  type: string;
+  /** Placeholder inserted into the redacted text (e.g. "[EMAIL_1]"). */
+  placeholder: string;
+  /** Placeholder start offset in the redacted text. */
+  start: number;
+  /** Placeholder end offset in the redacted text. */
+  end: number;
+}
+
+/**
+ * Attestation summary for the redaction enclave. Present on TEE-enabled
+ * (Enterprise) plans.
+ */
+export interface RedactionAttestation {
+  /** Enclave identifier the redaction ran on. */
+  enclaveId: string;
+  /** AWS region of the enclave. */
+  region: string;
+  /** PCR0 measurement (image hash), when available. */
+  pcr0?: string;
+  /** PCR1 measurement (kernel/bootstrap hash), when available. */
+  pcr1?: string;
+  /** PCR2 measurement (application hash), when available. */
+  pcr2?: string;
+  /** Redaction model version. */
+  modelVersion?: string;
+  /** Recognizer version. */
+  recognizerVersion?: string;
+  /** True only when redaction runs inside an attested TEE. */
+  attested: boolean;
+}
+
+/**
+ * Result of redacting a single text string via `POST /api/redact/run`.
+ */
+export interface RedactTextResponse {
+  /** The input text with detected PII replaced by placeholders. */
+  redacted: string;
+  /** The entities that were detected and replaced. */
+  entities: RedactEntity[];
+  /** Audit log reference for this redaction request. */
+  requestId: string;
+  /** Redaction mode used. `tee` only on attested Enterprise plans. */
+  mode: 'tee' | 'standard';
+  /** Attestation details — present only on TEE-enabled plans. */
+  attestation?: {
+    enclaveId: string;
+    region: string;
+    attested: boolean;
+  };
+  /** Redaction model version. */
+  modelVersion: string;
+  /** Recognizer version. */
+  recognizerVersion: string;
+}
+
+/**
+ * A single redaction audit log entry. Contains entity counts only — never the
+ * original or redacted text.
+ */
+export interface RedactionLogEntry {
+  /** ISO-8601 timestamp. */
+  ts: string;
+  /** Redaction request id. */
+  requestId: string;
+  /** Which endpoint produced the entry. */
+  source: 'run' | 'proxy';
+  /** Count of redacted entities keyed by type, e.g. `{ EMAIL: 2, PHONE: 1 }`. */
+  entityCountsByType: Record<string, number>;
+  /** Enclave id the redaction ran on. */
+  attestationRef: string;
+  /** Redaction model version. */
+  modelVersion: string;
+  /** Recognizer version. */
+  recognizerVersion: string;
+}
+
+/**
+ * Response for `getRedactionLog`.
+ */
+export interface RedactionLogResponse {
+  entries: RedactionLogEntry[];
+}
+
+/**
+ * Options for `getRedactionLog`.
+ */
+export interface RedactionLogOptions {
+  /** Maximum number of entries to return (newest first). */
+  limit?: number;
+  /** Only return entries on or after this ISO-8601 timestamp. */
+  since?: string;
+}
+
+/**
+ * A single chat message for the redaction proxy. Mirrors the OpenAI
+ * chat-completions message shape; string content and `text` parts are redacted
+ * before forwarding upstream.
+ */
+export interface RedactChatMessage {
+  role: string;
+  content: unknown;
+  [key: string]: unknown;
+}
+
+/**
+ * Request body for `redactChatCompletions`. Any additional OpenAI-compatible
+ * fields (model, temperature, etc.) are forwarded upstream unchanged.
+ */
+export interface RedactChatCompletionsRequest {
+  /** Chat messages; PII in string/text content is redacted before forwarding. */
+  messages: RedactChatMessage[];
+  /** Upstream model name. */
+  model?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Per-call options for `redactChatCompletions`.
+ */
+export interface RedactChatCompletionsOptions {
+  /**
+   * Upstream provider key, forwarded as the `x-model-key` header. Optional when
+   * the selected proxy already has a stored upstream key.
+   */
+  modelKey?: string;
+  /**
+   * Id of a configured redaction proxy (upstream URL, stored key, and policy),
+   * sent as the `x-treza-proxy` header.
+   */
+  proxyId?: string;
+  /**
+   * When true, request the rehydration map (`x-treza-rehydrate: 1`) so
+   * placeholders can be restored client-side. Returned in
+   * {@link RedactChatCompletionsResponse.rehydration}.
+   */
+  rehydrate?: boolean;
+}
+
+/**
+ * Response for `redactChatCompletions`. `data` is the upstream provider's
+ * (OpenAI-compatible) JSON response, returned verbatim.
+ */
+export interface RedactChatCompletionsResponse<T = any> {
+  /** The upstream provider response body, unchanged. */
+  data: T;
+  /** Treza redaction request id (audit log reference). */
+  requestId: string;
+  /** Redaction mode used. */
+  mode: 'tee' | 'standard';
+  /**
+   * Placeholder → original-value map for rehydrating the upstream response.
+   * Only present when `rehydrate: true` was passed. Rehydrate against
+   * accumulated text, not individual tokens.
+   */
+  rehydration?: Record<string, string>;
 }
 
 /**

@@ -16,7 +16,32 @@ import {
   createTaskSchema,
   listApiKeysSchema,
   createApiKeySchema,
+  piiScanSchema,
+  piiWorkflowCheckSchema,
+  piiAuditQuerySchema,
+  redactTextSchema,
+  redactChatCompletionsSchema,
 } from './tools';
+
+// Built-in PII field name heuristics (case-insensitive substring match)
+const PII_HEURISTICS = [
+  'name', 'firstname', 'lastname', 'fullname',
+  'email', 'phone', 'mobile', 'tel',
+  'dob', 'dateofbirth', 'birthdate', 'birthday', 'age',
+  'ssn', 'sin', 'nin', 'taxid', 'passport', 'license',
+  'address', 'street', 'city', 'zip', 'postcode', 'country',
+  'ip', 'deviceid', 'userid', 'nationalid', 'gender',
+  'salary', 'income', 'creditcard', 'cardnumber', 'iban',
+  'biometric', 'fingerprint', 'faceid',
+];
+
+function isPIIField(fieldName: string, customFields: string[]): boolean {
+  const lower = fieldName.toLowerCase().replace(/[_\-\s]/g, '');
+  return (
+    PII_HEURISTICS.some(h => lower.includes(h)) ||
+    customFields.some(f => lower.includes(f.toLowerCase().replace(/[_\-\s]/g, '')))
+  );
+}
 
 type ToolResult = {
   content: Array<{ type: 'text'; text: string }>;
@@ -190,6 +215,105 @@ export async function handleToolCall(
           message: 'API key created. Store the key securely — it will not be shown again.',
           apiKey,
         });
+      }
+
+      // ── PII Redaction ───────────────────────────────────────────────
+      case 'treza_redact_text': {
+        const { text } = redactTextSchema.parse(args);
+        const result = await client.redactText(text);
+        return ok(result);
+      }
+
+      case 'treza_redact_chat_completions': {
+        const { messages, model, modelKey, proxyId, rehydrate } =
+          redactChatCompletionsSchema.parse(args);
+        const result = await client.redactChatCompletions(
+          { model, messages },
+          {
+            ...(modelKey && { modelKey }),
+            ...(proxyId && { proxyId }),
+            ...(rehydrate && { rehydrate }),
+          },
+        );
+        return ok(result);
+      }
+
+      // ── PII Tracking ────────────────────────────────────────────────
+      case 'treza_pii_scan': {
+        const { payload, customPIIFields = [] } = piiScanSchema.parse(args);
+        const fields = Object.keys(payload);
+        const piiFields = fields.filter(f => isPIIField(f, customPIIFields));
+        const nonPIIFields = fields.filter(f => !isPIIField(f, customPIIFields));
+        const riskLevel = piiFields.length === 0 ? 'none' : piiFields.length <= 2 ? 'low' : piiFields.length <= 5 ? 'medium' : 'high';
+        return ok({
+          summary: {
+            totalFields: fields.length,
+            piiFieldCount: piiFields.length,
+            riskLevel,
+          },
+          piiFields: piiFields.map(f => ({ field: f, classification: 'pii' })),
+          nonPIIFields: nonPIIFields.map(f => ({ field: f, classification: 'non-pii' })),
+          recommendation: piiFields.length > 0
+            ? `This payload contains ${piiFields.length} PII field(s): ${piiFields.join(', ')}. Use PIIContext.fromObject() and declare requiresPII on each WorkflowStep to control where these fields flow.`
+            : 'No PII detected. Safe to pass to any workflow step.',
+        });
+      }
+
+      case 'treza_pii_workflow_check': {
+        const { workflow, initialPayload = {} } = piiWorkflowCheckSchema.parse(args);
+        const payloadFields = Object.keys(initialPayload);
+        const detectedPIIFields = payloadFields.filter(f => isPIIField(f, []));
+
+        const stepAnalysis = workflow.steps.map((step, index) => {
+          const prevStepAllowed = index === 0
+            ? detectedPIIFields
+            : workflow.steps.slice(0, index).reduce<string[]>((acc, s) => {
+                return acc.filter(f => s.requiresPII.includes(f));
+              }, detectedPIIFields);
+
+          const piiThatWouldArrive = prevStepAllowed;
+          const piiStripped = piiThatWouldArrive.filter(f => !step.requiresPII.includes(f));
+          const violation = piiThatWouldArrive.length > 0 && step.requiresPII.length === 0;
+
+          return {
+            stepId: step.id,
+            stepName: step.name,
+            requiresPII: step.requiresPII,
+            piiFieldsReceived: piiThatWouldArrive.filter(f => step.requiresPII.includes(f)),
+            piiFieldsStripped: piiStripped,
+            violation,
+            violationNote: violation
+              ? `PII fields [${piiThatWouldArrive.join(', ')}] are present in context but this step declares requiresPII: []. They will be stripped — verify this is intentional.`
+              : null,
+          };
+        });
+
+        const violations = stepAnalysis.filter(s => s.violation);
+        return ok({
+          workflowId: workflow.id,
+          workflowName: workflow.name,
+          summary: {
+            totalSteps: workflow.steps.length,
+            stepsReceivingPII: stepAnalysis.filter(s => s.piiFieldsReceived.length > 0).length,
+            violations: violations.length,
+            status: violations.length === 0 ? 'clean' : 'violations_detected',
+          },
+          steps: stepAnalysis,
+          ...(violations.length > 0 && {
+            actionRequired: `${violations.length} step(s) will silently strip PII. Review these steps to confirm requiresPII is correctly declared.`,
+          }),
+        });
+      }
+
+      case 'treza_pii_audit_query': {
+        const { workflowId, walletAddress, violationsOnly, limit = 50 } = piiAuditQuerySchema.parse(args);
+        const data = await client.queryPIIAudit({
+          workflowId: workflowId ?? undefined,
+          walletAddress: walletAddress ?? undefined,
+          violations: violationsOnly ?? false,
+          limit: Math.min(limit, 500),
+        });
+        return ok(data);
       }
 
       default:

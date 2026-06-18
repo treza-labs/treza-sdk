@@ -34,6 +34,13 @@ import {
   VerificationRequest,
   VerificationResult,
   VerificationStatus,
+  RedactTextResponse,
+  RedactionLogResponse,
+  RedactionLogOptions,
+  RedactionAttestation,
+  RedactChatCompletionsRequest,
+  RedactChatCompletionsOptions,
+  RedactChatCompletionsResponse,
   ApiError,
   TrezaSdkError
 } from './types';
@@ -43,17 +50,22 @@ import {
  */
 export class TrezaClient {
   private client: AxiosInstance;
+  private apiKey?: string;
 
   /**
    * Create a new Treza client instance
    * @param config Configuration options for the client
    */
   constructor(config: TrezaConfig = {}) {
+    this.apiKey = config.apiKey;
     this.client = axios.create({
       baseURL: config.baseUrl || 'https://app.trezalabs.com',
       timeout: config.timeout || 30000,
       headers: {
         'Content-Type': 'application/json',
+        // API-key-authenticated endpoints (e.g. PII redaction) expect a Bearer
+        // token. Wallet-scoped endpoints simply ignore it.
+        ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
       },
     });
 
@@ -613,7 +625,153 @@ System.out.println("Verification result: " + verifyResponse.body());`;
 
 
 
+  // ===== PII REDACTION =====
+  //
+  // These endpoints authenticate with a Treza API key (Bearer token). Construct
+  // the client with `new TrezaClient({ apiKey: 'treza_live_...' })` and grant the
+  // key the matching `redact:*` permission. They are the programmatic
+  // alternative to routing traffic through a hosted redaction proxy.
+
+  /**
+   * Redact PII from a text string (`POST /api/redact/run`).
+   *
+   * Runs the redaction pipeline and returns the redacted text plus the detected
+   * entities. The original text is never stored or forwarded. This is the direct
+   * alternative to the redaction proxy: redact locally, then do whatever you want
+   * with the result.
+   *
+   * Requires an API key with the `redact:run` permission.
+   *
+   * @param text Text to redact
+   * @returns Promise resolving to the redacted text and detected entities
+   */
+  async redactText(text: string): Promise<RedactTextResponse> {
+    this.requireApiKey('redactText');
+    try {
+      const response: AxiosResponse<RedactTextResponse> = await this.client.post(
+        '/api/redact/run',
+        { text }
+      );
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to redact text');
+    }
+  }
+
+  /**
+   * OpenAI-compatible chat completions with PII redaction
+   * (`POST /api/redact/chat/completions`).
+   *
+   * A drop-in replacement for an OpenAI-style `/v1/chat/completions` call: string
+   * and text-part message content is passed through the redaction pipeline before
+   * being forwarded to the upstream provider. The upstream response is returned
+   * verbatim in `data`, alongside the Treza request id and mode. Streaming is not
+   * supported by this helper — omit `stream` (or set it to `false`).
+   *
+   * Requires an API key with the `redact:proxy` permission. Provide either a
+   * configured `proxyId` (which can carry a stored upstream key) or a `modelKey`.
+   *
+   * @param request OpenAI-compatible chat completion request
+   * @param options Upstream key / proxy selection / rehydration options
+   * @returns Promise resolving to the upstream response plus redaction metadata
+   */
+  async redactChatCompletions<T = any>(
+    request: RedactChatCompletionsRequest,
+    options: RedactChatCompletionsOptions = {}
+  ): Promise<RedactChatCompletionsResponse<T>> {
+    this.requireApiKey('redactChatCompletions');
+    const headers: Record<string, string> = {};
+    if (options.modelKey) headers['x-model-key'] = options.modelKey;
+    if (options.proxyId) headers['x-treza-proxy'] = options.proxyId;
+    if (options.rehydrate) headers['x-treza-rehydrate'] = '1';
+
+    try {
+      const response: AxiosResponse<T> = await this.client.post(
+        '/api/redact/chat/completions',
+        { ...request, stream: false },
+        { headers }
+      );
+      const rehydrationHeader = response.headers['x-treza-rehydration'];
+      let rehydration: Record<string, string> | undefined;
+      if (typeof rehydrationHeader === 'string' && rehydrationHeader) {
+        try {
+          rehydration = JSON.parse(rehydrationHeader);
+        } catch {
+          rehydration = undefined;
+        }
+      }
+      return {
+        data: response.data,
+        requestId: (response.headers['x-treza-request-id'] as string) || '',
+        mode: ((response.headers['x-treza-mode'] as string) || 'standard') as 'tee' | 'standard',
+        ...(rehydration ? { rehydration } : {}),
+      };
+    } catch (error) {
+      throw this.handleError(error, 'Failed to run redaction proxy request');
+    }
+  }
+
+  /**
+   * Get the redaction audit log for the calling API key
+   * (`GET /api/redact/log`).
+   *
+   * Entries contain entity counts by type — never the original or redacted text.
+   * Requires an API key with the `redact:log` permission.
+   *
+   * @param options Optional `limit` and `since` filters
+   * @returns Promise resolving to the audit log entries (newest first)
+   */
+  async getRedactionLog(options: RedactionLogOptions = {}): Promise<RedactionLogResponse> {
+    this.requireApiKey('getRedactionLog');
+    try {
+      const params: Record<string, string | number> = {};
+      if (options.limit !== undefined) params.limit = options.limit;
+      if (options.since !== undefined) params.since = options.since;
+      const response: AxiosResponse<RedactionLogResponse> = await this.client.get(
+        '/api/redact/log',
+        { params }
+      );
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to get redaction audit log');
+    }
+  }
+
+  /**
+   * Get the attestation summary for the redaction enclave
+   * (`GET /api/redact/attest`).
+   *
+   * Requires an Enterprise plan (TEE redaction) and an API key with the
+   * `redact:run` permission.
+   *
+   * @returns Promise resolving to the redaction enclave attestation summary
+   */
+  async getRedactionAttestation(): Promise<RedactionAttestation> {
+    this.requireApiKey('getRedactionAttestation');
+    try {
+      const response: AxiosResponse<RedactionAttestation> = await this.client.get(
+        '/api/redact/attest'
+      );
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to get redaction attestation');
+    }
+  }
+
   // ===== UTILITY METHODS =====
+
+  /**
+   * Ensure an API key was provided for endpoints that require Bearer auth.
+   */
+  private requireApiKey(method: string): void {
+    if (!this.apiKey) {
+      throw new TrezaSdkError(
+        `${method} requires a Treza API key. Construct the client with ` +
+          `new TrezaClient({ apiKey: 'treza_live_...' }).`,
+        'MISSING_API_KEY'
+      );
+    }
+  }
 
   /**
    * Handle API errors and convert them to TrezaSdkError

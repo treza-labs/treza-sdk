@@ -1,8 +1,8 @@
 {
   "name": "@treza/mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "mcpName": "io.github.treza-labs/treza",
-  "description": "Model Context Protocol server for Treza Enclaves — lets AI agents manage TEEs, verify attestations, and sign transactions",
+  "description": "Model Context Protocol server for Treza Enclaves — lets AI agents manage TEEs, verify attestations, redact PII, and sign transactions",
   "keywords": [
     "treza",
     "mcp",
@@ -11,7 +11,9 @@
     "enclaves",
     "tee",
     "attestation",
-    "nitro-enclaves"
+    "nitro-enclaves",
+    "pii",
+    "redaction"
   ],
   "homepage": "https://trezalabs.com",
   "repository": {
