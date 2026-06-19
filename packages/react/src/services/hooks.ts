@@ -361,3 +361,120 @@ export function useVerificationFlow(provider?: ethers.Provider, signer?: ethers.
         reset
     };
 }
+
+// =========================================================================
+// PII AUDIT HOOK
+// =========================================================================
+
+export interface PIIAccessEvent {
+    eventId: string;
+    workflowId: string;
+    workflowRunId: string;
+    stepId: string;
+    stepName: string;
+    piiFieldsPresent: string[];
+    piiFieldsAllowed: string[];
+    piiFieldsStripped: string[];
+    hadViolation: boolean;
+    timestamp: string;
+    walletAddress?: string;
+}
+
+export interface PIIAuditSummary {
+    total: number;
+    violations: number;
+    workflows: string[];
+}
+
+export interface UsePIIAuditResult {
+    events: PIIAccessEvent[];
+    summary: PIIAuditSummary | null;
+    isLoading: boolean;
+    error: string | null;
+    refresh: () => void;
+}
+
+/**
+ * Hook for querying PII audit events from the Treza backend.
+ * Polls the /api/pii/audit endpoint and returns events for the given filters.
+ *
+ * The endpoint requires authentication: pass a Treza API key with the
+ * `pii:audit` permission (or a Privy access token) as `authToken`. Results
+ * are always scoped to the authenticated account.
+ */
+export function usePIIAudit(options: {
+    apiBaseUrl?: string;
+    workflowId?: string;
+    walletAddress?: string;
+    violationsOnly?: boolean;
+    limit?: number;
+    pollIntervalMs?: number;
+    /** Bearer token: Treza API key (pii:audit) or Privy access token. */
+    authToken?: string;
+} = {}): UsePIIAuditResult {
+    const {
+        apiBaseUrl = '',
+        workflowId,
+        walletAddress,
+        violationsOnly = false,
+        limit = 100,
+        pollIntervalMs,
+        authToken,
+    } = options;
+
+    const [events, setEvents] = useState<PIIAccessEvent[]>([]);
+    const [summary, setSummary] = useState<PIIAuditSummary | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchAudit = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const params = new URLSearchParams();
+                if (workflowId) params.set('workflowId', workflowId);
+                if (walletAddress) params.set('walletAddress', walletAddress);
+                if (violationsOnly) params.set('violations', 'true');
+                params.set('limit', String(limit));
+
+                const headers: Record<string, string> = {};
+                if (authToken) headers.Authorization = `Bearer ${authToken}`;
+                if (walletAddress) headers['x-treza-account'] = walletAddress;
+
+                const res = await fetch(`${apiBaseUrl}/api/pii/audit?${params.toString()}`, { headers });
+                if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+                const data = await res.json();
+                if (!cancelled) {
+                    setEvents(data.events ?? []);
+                    setSummary(data.summary ?? null);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setError(err instanceof Error ? err.message : String(err));
+                }
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        };
+
+        fetchAudit();
+
+        let intervalId: ReturnType<typeof setInterval> | undefined;
+        if (pollIntervalMs && pollIntervalMs > 0) {
+            intervalId = setInterval(fetchAudit, pollIntervalMs);
+        }
+
+        return () => {
+            cancelled = true;
+            if (intervalId !== undefined) clearInterval(intervalId);
+        };
+    }, [apiBaseUrl, workflowId, walletAddress, violationsOnly, limit, pollIntervalMs, refreshKey, authToken]);
+
+    return { events, summary, isLoading, error, refresh };
+}

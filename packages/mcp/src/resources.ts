@@ -45,6 +45,12 @@ export const RESOURCE_TEMPLATES: ResourceTemplateDefinition[] = [
     description: 'Quick verification status and trust level for an enclave',
     mimeType: 'application/json',
   },
+  {
+    uriTemplate: 'treza://pii/audit/{workflowId}',
+    name: 'PII Audit Log',
+    description: 'PII access events for a specific workflow, showing which fields were present, allowed, and stripped at each step boundary. Violations are flagged where PII flowed into a step that declared requiresPII: [].',
+    mimeType: 'application/json',
+  },
 ];
 
 export async function handleResourceRead(
@@ -80,6 +86,13 @@ export async function handleResourceRead(
     const enclaveId = pathParts[0];
     const status = await client.getVerificationStatus(enclaveId);
     return JSON.stringify(status, null, 2);
+  }
+
+  // treza://pii/audit/{workflowId}
+  if (url.host === 'pii' && pathParts.length === 2 && pathParts[0] === 'audit') {
+    const workflowId = pathParts[1];
+    const data = await client.queryPIIAudit({ workflowId });
+    return JSON.stringify(data, null, 2);
   }
 
   throw new Error(`Unknown resource URI: ${uri}`);

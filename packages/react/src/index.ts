@@ -31,7 +31,8 @@ export {
   useWallet,
   useCompliance,
   useTreza,
-  useVerificationFlow
+  useVerificationFlow,
+  usePIIAudit,
 } from './services';
 
 // Service type exports
@@ -42,7 +43,10 @@ export type {
   UseWalletResult,
   UseComplianceResult,
   UseTrezaResult,
-  UseVerificationFlowResult
+  UseVerificationFlowResult,
+  UsePIIAuditResult,
+  PIIAccessEvent,
+  PIIAuditSummary,
 } from './services';
 
 // Re-export core types for convenience

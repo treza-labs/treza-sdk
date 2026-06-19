@@ -26,7 +26,8 @@ export {
     useWallet,
     useCompliance,
     useTreza,
-    useVerificationFlow
+    useVerificationFlow,
+    usePIIAudit,
 } from './hooks';
 
 // Hook types
@@ -34,7 +35,10 @@ export type {
     UseWalletResult,
     UseComplianceResult,
     UseTrezaResult,
-    UseVerificationFlowResult
+    UseVerificationFlowResult,
+    UsePIIAuditResult,
+    PIIAccessEvent,
+    PIIAuditSummary,
 } from './hooks';
 
 // Re-export core types for convenience
