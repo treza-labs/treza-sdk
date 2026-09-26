@@ -4,6 +4,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue)](https://www.typescriptlang.org/)
 
+> **Looking for Treza's MCP server?** It is hosted at `https://www.trezalabs.com/api/mcp` and lets Claude, Cursor or any MCP client build, run, schedule and publish AI video pipelines. Setup is at [trezalabs.com/connect](https://www.trezalabs.com/connect), and the source for its stdio bridge and agent plugin is [treza-labs/treza-plugin](https://github.com/treza-labs/treza-plugin). It is listed in the official MCP Registry as `io.github.treza-labs/treza`.
+>
+> **Paying Treza over x402?** Agents buy video, speech, music, images, YouTube clips and narrated shorts per call in USDC on Base or Solana, with no account, API key or SDK. See the [x402 docs](https://docs.trezalabs.com/api/x402-payments).
+>
+> This repository is the SDK for Treza Enclaves. The `@treza/mcp` package in it is the earlier MCP server for enclaves.
+
 TypeScript SDK for interacting with TREZA's privacy-preserving KYC system and secure enclave management platform.
 
 ## Table of Contents
@@ -77,9 +83,9 @@ TypeScript SDK for interacting with TREZA's privacy-preserving KYC system and se
 
 Treza enclaves are designed to work with AI agents out of the box. Three integration paths are available:
 
-### MCP Server (Recommended for AI Agents)
+### MCP Server for Enclaves
 
-The [`@treza/mcp`](./packages/mcp) package exposes all Treza operations as MCP tools. Add it to any MCP-compatible client:
+For Treza's hosted MCP server, which builds and publishes AI video pipelines, see the note at the top of this README. The [`@treza/mcp`](./packages/mcp) package in this repository exposes the enclave operations as MCP tools. Add it to any MCP-compatible client:
 
 ```json
 {
@@ -114,6 +120,8 @@ https://app.trezalabs.com/.well-known/ai-plugin.json
 ```
 
 ## x402 Payment Integration
+
+To buy from Treza's own x402 endpoints (video, speech, music, images, clips and shorts), no SDK is needed: see the [x402 docs](https://docs.trezalabs.com/api/x402-payments). The helpers below let a Treza Enclave act as the paying wallet for any x402 API.
 
 Use a Treza Enclave as an [x402](https://docs.x402.org) payment wallet. Private keys sign payment headers inside the TEE — they never leave the hardware boundary. This enables AI agents and programmatic clients to automatically pay for x402-gated APIs using enclave-managed funds.
 

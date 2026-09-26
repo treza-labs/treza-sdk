@@ -3,6 +3,8 @@
 [![npm version](https://badge.fury.io/js/%40treza%2Fmcp.svg)](https://badge.fury.io/js/%40treza%2Fmcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+> **Looking for Treza's current MCP server?** This package is the earlier MCP server for Treza Enclaves. Treza's MCP server for building, running and publishing AI video pipelines is hosted at `https://www.trezalabs.com/api/mcp`: see [trezalabs.com/connect](https://www.trezalabs.com/connect) and [treza-labs/treza-plugin](https://github.com/treza-labs/treza-plugin).
+
 Model Context Protocol (MCP) server for Treza Enclaves. Lets AI agents manage hardware-isolated TEEs, verify cryptographic attestations, and interact with the Treza platform — all through natural tool calls.
 
 ## Quick Start
